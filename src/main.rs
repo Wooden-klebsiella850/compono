@@ -4,8 +4,13 @@
 mod config;
 mod i18n;
 mod logging;
+mod monitors;
 mod single_instance;
 mod tray;
+// Le modèle de grille est exercé par les tests, son usage dans le binaire arrive
+// avec l'overlay (phase 3) et le placement (phase 5).
+#[cfg_attr(not(test), allow(dead_code))]
+mod grid;
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -59,6 +64,8 @@ fn main() {
     SHOW_GRID_MSG.store(guard.show_grid_message(), Ordering::Relaxed);
     TASKBAR_CREATED_MSG.store(tray::taskbar_created_message(), Ordering::Relaxed);
 
+    log_monitors();
+
     let hwnd = match create_core_window() {
         Some(hwnd) => hwnd,
         None => {
@@ -88,6 +95,29 @@ fn default_lang() -> String {
     sys_locale::get_locale()
         .map(|loc| loc.split('-').next().unwrap_or("fr").to_string())
         .unwrap_or_else(|| "fr".to_string())
+}
+
+/// Énumère les écrans et logge la grille par défaut de chacun.
+fn log_monitors() {
+    let monitors = monitors::reload();
+    info!("{} moniteur(s) détecté(s)", monitors.len());
+    let autohide = monitors::taskbar_autohide_edge();
+    for monitor in &monitors {
+        let work = monitors::reserve_autohide(monitor.work, autohide);
+        match grid::Grid::new(work, grid::GridOptions::default()) {
+            Some(g) => info!(
+                "écran {:?} (primary={}, dpi={}) : zone {}x{}, grille {}x{}",
+                monitor.handle,
+                monitor.is_primary,
+                monitor.dpi(),
+                g.area().width,
+                g.area().height,
+                g.cols(),
+                g.rows()
+            ),
+            None => info!("écran {:?} : zone de travail trop petite", monitor.handle),
+        }
+    }
 }
 
 /// Crée la fenêtre cachée qui recevra les messages du tray et des autres instances.
@@ -172,6 +202,11 @@ unsafe extern "system" fn core_wnd_proc(
         }
         WM_COMMAND => {
             handle_tray_action(hwnd, tray::on_command(wparam));
+            LRESULT(0)
+        }
+        WM_DISPLAYCHANGE | WM_SETTINGCHANGE => {
+            log_monitors();
+            info!("disposition d'écran modifiée, moniteurs renumérotés");
             LRESULT(0)
         }
         other if other == tray::WM_TRAY => {

@@ -1,0 +1,7 @@
+{
+  "app.name": "Compono",
+  "app.show_grid": "Show grid",
+  "app.configure": "Settings",
+  "app.quit": "Quit",
+  "app.already_running": "Compono is already running."
+}

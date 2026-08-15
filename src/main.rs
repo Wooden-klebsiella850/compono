@@ -5,6 +5,7 @@ mod config;
 mod i18n;
 mod logging;
 mod monitors;
+mod overlay;
 mod single_instance;
 mod snap;
 mod tray;
@@ -14,7 +15,7 @@ mod tray;
 mod grid;
 
 use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use log::{error, info};
@@ -24,6 +25,7 @@ use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::HiDpi::{
     DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext,
 };
+use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, MOD_NOREPEAT, MOD_WIN, RegisterHotKey};
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 use i18n::I18n;
@@ -37,6 +39,27 @@ static SHOW_GRID_MSG: AtomicU32 = AtomicU32::new(0);
 
 /// Id du message "TaskbarCreated" pour recréer l'icône après un redémarrage d'explorer.
 static TASKBAR_CREATED_MSG: AtomicU32 = AtomicU32::new(0);
+
+/// Gestionnaire d'overlays, accessible depuis la procédure de fenêtre.
+///
+/// Les interfaces COM ne sont pas Send : tous les accès se font ici sur la
+/// thread UI (boucle de messages), sous mutex. La nouvelletype documente ce
+/// contrat.
+struct OverlayCell(Mutex<Option<overlay::OverlayManager>>);
+unsafe impl Send for OverlayCell {}
+unsafe impl Sync for OverlayCell {}
+
+impl std::ops::Deref for OverlayCell {
+    type Target = Mutex<Option<overlay::OverlayManager>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+static OVERLAY: OverlayCell = OverlayCell(Mutex::new(None));
+
+/// Id du raccourci global qui bascule l'affichage de la grille.
+const HOTKEY_TOGGLE_ID: i32 = 1;
 
 fn main() {
     // Instance unique avant toute initialisation. La seconde instance notifie et s'arrête.
@@ -67,6 +90,11 @@ fn main() {
 
     log_monitors();
 
+    OVERLAY
+        .lock()
+        .expect("verrou overlay")
+        .get_or_insert_with(|| overlay::OverlayManager::new(grid::GridOptions::default()));
+
     let hwnd = match create_core_window() {
         Some(hwnd) => hwnd,
         None => {
@@ -74,6 +102,17 @@ fn main() {
             return;
         }
     };
+
+    // Win+Alt+G : bascule l'affichage de la grille. Enregistré sur la fenêtre
+    // pour que WM_HOTKEY lui soit adressé directement.
+    unsafe {
+        let _ = RegisterHotKey(
+            Some(hwnd),
+            HOTKEY_TOGGLE_ID,
+            MOD_WIN | MOD_ALT | MOD_NOREPEAT,
+            'G' as u32,
+        );
+    }
     if let Err(err) = tray::add(hwnd, TR.get().expect("i18n non initialisé")) {
         error!("échec d'ajout de l'icône tray : {err}");
     }
@@ -208,6 +247,19 @@ unsafe extern "system" fn core_wnd_proc(
         WM_DISPLAYCHANGE | WM_SETTINGCHANGE => {
             log_monitors();
             info!("disposition d'écran modifiée, moniteurs renumérotés");
+            if let Ok(mut guard) = OVERLAY.lock() {
+                if let Some(manager) = guard.as_mut() {
+                    if let Err(err) = manager.on_display_change() {
+                        error!("reconstruction des overlays : {err}");
+                    }
+                }
+            }
+            LRESULT(0)
+        }
+        WM_HOTKEY => {
+            if wparam.0 as i32 == HOTKEY_TOGGLE_ID {
+                toggle_overlay();
+            }
             LRESULT(0)
         }
         other if other == tray::WM_TRAY => {
@@ -217,8 +269,8 @@ unsafe extern "system" fn core_wnd_proc(
             LRESULT(0)
         }
         other if other == SHOW_GRID_MSG.load(Ordering::Relaxed) => {
-            // Phase 3 : basculer l'affichage de la grille. La seconde instance a demandé.
-            info!("demande d'affichage de la grille reçue");
+            info!("bascule de la grille demandée par une seconde instance");
+            toggle_overlay();
             LRESULT(0)
         }
         other if other == TASKBAR_CREATED_MSG.load(Ordering::Relaxed) => {
@@ -233,11 +285,27 @@ unsafe extern "system" fn core_wnd_proc(
     }
 }
 
+/// Bascule l'affichage de la grille (overlay).
+fn toggle_overlay() {
+    if let Ok(mut guard) = OVERLAY.lock() {
+        let manager = guard.get_or_insert_with(|| {
+            overlay::OverlayManager::new(grid::GridOptions::default())
+        });
+        match manager.toggle() {
+            Ok(()) => {
+                let state = if manager.is_visible() { "affichée" } else { "masquée" };
+                info!("grille {state}");
+            }
+            Err(err) => error!("échec de l'affichage de la grille : {err}"),
+        }
+    }
+}
+
 fn handle_tray_action(hwnd: HWND, action: tray::TrayAction) {
     match action {
         tray::TrayAction::None => {}
         tray::TrayAction::ShowGrid => {
-            info!("bascule de la grille demandée (phase 3)");
+            toggle_overlay();
         }
         tray::TrayAction::Configure => {
             info!("configuration demandée (phase 8)");

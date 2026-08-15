@@ -29,6 +29,7 @@ dependencies = [
  "sys-locale",
  "toml",
  "windows",
+ "windows-numerics",
 ]
 
 [[package]]

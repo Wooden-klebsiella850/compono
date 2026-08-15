@@ -172,12 +172,35 @@ impl Grid {
         self.area
     }
 
+    /// Zone intérieure de la grille, après la marge.
+    pub fn inner(&self) -> Rect {
+        self.inner
+    }
+
     pub fn cols(&self) -> u32 {
         self.cols
     }
 
     pub fn rows(&self) -> u32 {
         self.rows
+    }
+
+    /// Position x du trait vertical n°index (0..=cols), coordonnées absolues.
+    pub fn column_x(&self, index: u32) -> i32 {
+        if index >= self.cols {
+            self.col_bounds(self.cols - 1).1
+        } else {
+            self.col_bounds(index).0
+        }
+    }
+
+    /// Position y du trait horizontal n°index (0..=rows), coordonnées absolues.
+    pub fn row_y(&self, index: u32) -> i32 {
+        if index >= self.rows {
+            self.row_bounds(self.rows - 1).1
+        } else {
+            self.row_bounds(index).0
+        }
     }
 
     pub fn cell_rect(&self, cell: Cell) -> Rect {

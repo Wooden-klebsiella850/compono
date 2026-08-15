@@ -1,1 +1,11 @@
 /target
+
+# Build artifacts
+*.pdb
+*.log
+
+# Editor / OS noise
+.vs/
+.vscode/
+Thumbs.db
+desktop.ini

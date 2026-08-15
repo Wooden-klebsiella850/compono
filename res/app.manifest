@@ -5,7 +5,9 @@
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>
-        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+        <!-- Requis pour placer des fenêtres élevées (ex : un terminal lancé en administrateur) :
+             UIPI bloque SetWindowPos/ShowWindow venant d'un processus de niveau inférieur. -->
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
       </requestedPrivileges>
     </security>
   </trustInfo>

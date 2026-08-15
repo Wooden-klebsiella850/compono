@@ -15,6 +15,7 @@ pub struct Rect {
 }
 
 impl Rect {
+    #[allow(dead_code)]
     pub fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
         Self {
             x,
@@ -40,6 +41,11 @@ impl Rect {
 
     pub fn bottom(&self) -> i32 {
         self.y + self.height as i32
+    }
+
+    /// Le point (x, y) est-il dans le rectangle (bord inférieur et droit exclus) ?
+    pub fn contains(&self, x: i32, y: i32) -> bool {
+        x >= self.x && x < self.right() && y >= self.y && y < self.bottom()
     }
 
     /// Réduit de `dx` à gauche et à droite, de `dy` en haut et en bas.
@@ -75,6 +81,7 @@ impl Rect {
 
 /// Mode de grille d'un écran.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum GridMode {
     /// Pas fixe en pixels physiques.
     Fixed { pitch_px: u32 },

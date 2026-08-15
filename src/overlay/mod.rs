@@ -29,11 +29,13 @@ impl OverlayManager {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_visible(&self) -> bool {
         self.visible
     }
 
     /// Affiche les overlays, en créant les fenêtres à la première apparition.
+    #[allow(dead_code)]
     pub fn show(&mut self) -> Result<()> {
         if self.windows.is_empty() {
             self.build_windows()?;
@@ -46,6 +48,39 @@ impl OverlayManager {
         Ok(())
     }
 
+    /// Affiche la grille, avec halo et sélection sur l'écran actif (drag).
+    pub fn show_with_state(
+        &mut self,
+        active: usize,
+        halo: Option<render::HaloState>,
+    ) -> Result<()> {
+        if self.windows.is_empty() {
+            self.build_windows()?;
+        }
+        for (index, window) in self.windows.iter().enumerate() {
+            window.show();
+            let state = if index == active {
+                render::OverlayState {
+                    halo,
+                    selection: None,
+                }
+            } else {
+                render::OverlayState::default()
+            };
+            window.render(&state)?;
+        }
+        self.visible = true;
+        Ok(())
+    }
+
+    /// Met à jour l'état dessiné sur un écran.
+    pub fn update(&self, monitor: usize, state: &render::OverlayState) -> Result<()> {
+        if let Some(window) = self.windows.get(monitor) {
+            window.render(state)?;
+        }
+        Ok(())
+    }
+
     pub fn hide(&mut self) {
         for window in &self.windows {
             window.hide();
@@ -53,6 +88,7 @@ impl OverlayManager {
         self.visible = false;
     }
 
+    #[allow(dead_code)]
     pub fn toggle(&mut self) -> Result<()> {
         if self.visible {
             self.hide();
@@ -81,13 +117,19 @@ impl OverlayManager {
             self.gfx = Some(Gfx::new()?);
         }
         let monitors = monitors::current();
-        let windows: Vec<OverlayWindow> = {
+        let mut windows = Vec::new();
+        {
             let gfx = self.gfx.as_ref().expect("gfx initialisé");
-            monitors
-                .iter()
-                .filter_map(|monitor| OverlayWindow::new(gfx, monitor, options).ok())
-                .collect()
-        };
+            for monitor in &monitors {
+                match OverlayWindow::new(gfx, monitor, options) {
+                    Ok(window) => windows.push(window),
+                    // DIAG : à retirer.
+                    Err(err) => log::error!("création overlay échouée : {err}"),
+                }
+            }
+        }
+        // DIAG : à retirer.
+        log::info!("overlays construits : {}/{}", windows.len(), monitors.len());
         self.windows = windows;
         Ok(())
     }

@@ -4,13 +4,14 @@ use windows::core::{w, HSTRING, PCWSTR};
 use windows::Win32::Foundation::{HWND, LPARAM, POINT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Shell::{
-    NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_SETVERSION, NOTIFYICONDATAW,
-    NOTIFYICON_VERSION_4, Shell_NotifyIconW,
+    NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_SETVERSION, NIN_SELECT,
+    NOTIFYICONDATAW, NOTIFYICON_VERSION, Shell_NotifyIconW,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    AppendMenuW, CreatePopupMenu, DestroyMenu, GetCursorPos, LoadIconW, MF_SEPARATOR, MF_STRING,
-    PostMessageW, RegisterWindowMessageW, SetForegroundWindow, TrackPopupMenu, TPM_RIGHTBUTTON,
-    WM_APP, WM_LBUTTONUP, WM_NULL, WM_RBUTTONDBLCLK, WM_RBUTTONUP,
+    AppendMenuW, CreatePopupMenu, DestroyMenu, GetCursorPos, LoadIconW, MF_CHECKED, MF_SEPARATOR,
+    MF_STRING, MF_UNCHECKED, PostMessageW, RegisterWindowMessageW, SetForegroundWindow,
+    TrackPopupMenu, TPM_RETURNCMD, TPM_RIGHTBUTTON, WM_APP, WM_CONTEXTMENU, WM_LBUTTONUP, WM_NULL,
+    WM_RBUTTONDBLCLK, WM_RBUTTONUP,
 };
 
 use crate::i18n::I18n;
@@ -18,10 +19,8 @@ use crate::i18n::I18n;
 pub const WM_TRAY: u32 = WM_APP + 1;
 pub const TRAY_ID: u32 = 1;
 
-const IDM_SHOW_GRID: u16 = 1;
-const IDM_CONFIGURE: u16 = 2;
-const IDM_TOGGLE_SNAP: u16 = 4;
-const IDM_QUIT: u16 = 3;
+const IDM_TOGGLE_SNAP: u16 = 1;
+const IDM_QUIT: u16 = 2;
 
 const ICON_RESOURCE_ID: usize = 101;
 
@@ -29,7 +28,6 @@ const ICON_RESOURCE_ID: usize = 101;
 pub enum TrayAction {
     None,
     ShowGrid,
-    Configure,
     ToggleSnap,
     Quit,
 }
@@ -52,7 +50,9 @@ pub fn add(hwnd: HWND, tr: &I18n) -> windows::core::Result<()> {
         if Shell_NotifyIconW(NIM_ADD, &nid).0 == 0 {
             return Err(windows::core::Error::from_win32());
         }
-        nid.Anonymous.uVersion = NOTIFYICON_VERSION_4;
+        // La version classique fournit directement WM_RBUTTONUP dans lParam.
+        // Elle reste la plus fiable pour les menus contextuels sur les shells Windows.
+        nid.Anonymous.uVersion = NOTIFYICON_VERSION;
         let _ = Shell_NotifyIconW(NIM_SETVERSION, &nid);
         Ok(())
     }
@@ -78,12 +78,17 @@ pub fn taskbar_created_message() -> u32 {
 
 /// Traite la notification de la zone de notification (message WM_TRAY).
 pub fn on_callback(hwnd: HWND, lparam: LPARAM, tr: &I18n) -> TrayAction {
-    match lparam.0 as u32 {
-        WM_LBUTTONUP => TrayAction::ShowGrid,
-        WM_RBUTTONUP | WM_RBUTTONDBLCLK => {
-            show_menu(hwnd, tr);
-            TrayAction::None
-        }
+    let raw = lparam.0 as u32;
+    let low_word = raw & 0xFFFF;
+    // Accepte aussi les messages envoyés au format Version 4 si Explorer a
+    // conservé la version précédente de l'icône pendant son redémarrage.
+    let msg = match low_word {
+        WM_LBUTTONUP | WM_RBUTTONUP | WM_RBUTTONDBLCLK | WM_CONTEXTMENU | NIN_SELECT => low_word,
+        _ => raw,
+    };
+    match msg {
+        WM_LBUTTONUP | NIN_SELECT => TrayAction::ShowGrid,
+        WM_RBUTTONUP | WM_CONTEXTMENU | WM_RBUTTONDBLCLK => show_menu(hwnd, tr),
         _ => TrayAction::None,
     }
 }
@@ -91,42 +96,55 @@ pub fn on_callback(hwnd: HWND, lparam: LPARAM, tr: &I18n) -> TrayAction {
 /// Traite un WM_COMMAND issu du menu contextuel.
 pub fn on_command(wparam: WPARAM) -> TrayAction {
     match wparam.0 as u16 {
-        IDM_SHOW_GRID => TrayAction::ShowGrid,
-        IDM_CONFIGURE => TrayAction::Configure,
         IDM_TOGGLE_SNAP => TrayAction::ToggleSnap,
         IDM_QUIT => TrayAction::Quit,
         _ => TrayAction::None,
     }
 }
 
-fn show_menu(hwnd: HWND, tr: &I18n) {
+fn show_menu(hwnd: HWND, tr: &I18n) -> TrayAction {
     unsafe {
         let menu = match CreatePopupMenu() {
             Ok(menu) => menu,
-            Err(_) => return,
+            Err(_) => return TrayAction::None,
         };
-        let show_grid = HSTRING::from(tr.t("app.show_grid"));
-        let configure = HSTRING::from(tr.t("app.configure"));
         let snap_enabled = crate::snap::is_snap_enabled();
-        let toggle_snap = HSTRING::from(tr.t(if snap_enabled {
-            "snap.disable"
+        let toggle_snap_text = if snap_enabled {
+            format!("{} [ON]", tr.t("snap.action"))
         } else {
-            "snap.enable"
-        }));
+            format!("{} [OFF]", tr.t("snap.action"))
+        };
+        let toggle_snap = HSTRING::from(toggle_snap_text);
         let quit = HSTRING::from(tr.t("app.quit"));
-        let _ = AppendMenuW(menu, MF_STRING, IDM_SHOW_GRID as usize, &show_grid);
-        let _ = AppendMenuW(menu, MF_STRING, IDM_CONFIGURE as usize, &configure);
-        let _ = AppendMenuW(menu, MF_STRING, IDM_TOGGLE_SNAP as usize, &toggle_snap);
+
+        let snap_flags = if snap_enabled {
+            MF_STRING | MF_CHECKED
+        } else {
+            MF_STRING | MF_UNCHECKED
+        };
+        let _ = AppendMenuW(menu, snap_flags, IDM_TOGGLE_SNAP as usize, &toggle_snap);
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, w!(""));
         let _ = AppendMenuW(menu, MF_STRING, IDM_QUIT as usize, &quit);
 
         let _ = SetForegroundWindow(hwnd);
         let mut pt = POINT::default();
         let _ = GetCursorPos(&mut pt);
-        let _ = TrackPopupMenu(menu, TPM_RIGHTBUTTON, pt.x, pt.y, Some(0), hwnd, None);
-        // Message nul posté pour que le menu se referme au premier clic.
+        let command = TrackPopupMenu(
+            menu,
+            TPM_RIGHTBUTTON | TPM_RETURNCMD,
+            pt.x,
+            pt.y,
+            Some(0),
+            hwnd,
+            None,
+        );
         let _ = PostMessageW(Some(hwnd), WM_NULL, WPARAM(0), LPARAM(0));
         let _ = DestroyMenu(menu);
+        if command.0 == 0 {
+            TrayAction::None
+        } else {
+            on_command(WPARAM(command.0 as usize))
+        }
     }
 }
 

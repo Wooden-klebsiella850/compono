@@ -24,7 +24,7 @@ impl OverlayWindow {
         let bounds = monitor.bounds;
         let hwnd = create_overlay_window(bounds)?;
         let renderer = Renderer::new(gfx, hwnd, bounds.width, bounds.height)?;
-        let grid = Grid::new(monitor.work, options);
+        let grid = Grid::new(crate::monitors::effective_work(monitor.work), options);
         Ok(OverlayWindow {
             hwnd,
             bounds,
@@ -37,6 +37,12 @@ impl OverlayWindow {
     pub fn show(&self) {
         unsafe {
             let _ = ShowWindow(self.hwnd, SW_SHOWNOACTIVATE);
+            // DIAG : à retirer.
+            log::info!(
+                "overlay {:?} visible après show : {}",
+                self.hwnd,
+                IsWindowVisible(self.hwnd).0
+            );
         }
     }
 
@@ -75,7 +81,7 @@ fn create_overlay_window(bounds: Rect) -> Result<HWND> {
         // La classe peut déjà exister, l'erreur est alors sans conséquence.
         RegisterClassW(&wc);
         let hwnd = CreateWindowExW(
-            WS_EX_LAYERED
+            WS_EX_NOREDIRECTIONBITMAP
                 | WS_EX_TRANSPARENT
                 | WS_EX_NOACTIVATE
                 | WS_EX_TOOLWINDOW

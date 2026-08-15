@@ -8,15 +8,17 @@ use std::mem::ManuallyDrop;
 use windows::core::{Interface, Result};
 use windows::Win32::Foundation::{HMODULE, HWND};
 use windows::Win32::Graphics::Direct2D::Common::{
-    D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_GRADIENT_STOP, D2D1_PIXEL_FORMAT, D2D_RECT_F,
+    D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_GRADIENT_STOP, D2D1_PIXEL_FORMAT,
+    D2D_RECT_F,
 };
 use windows::Win32::Graphics::Direct2D::{
-    D2D1_ANTIALIAS_MODE_ALIASED, D2D1_BITMAP_OPTIONS_TARGET, D2D1_BITMAP_PROPERTIES1,
-    D2D1_BUFFER_PRECISION_8BPC_UNORM, D2D1_COLOR_INTERPOLATION_MODE_STRAIGHT,
-    D2D1_COLOR_SPACE_SRGB, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, D2D1_EXTEND_MODE_CLAMP,
-    D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES, D2D1_ROUNDED_RECT,
-    D2D1CreateFactory, ID2D1Bitmap1, ID2D1ColorContext, ID2D1Device, ID2D1DeviceContext,
-    ID2D1Factory1, ID2D1GradientStopCollection1, ID2D1LinearGradientBrush, ID2D1SolidColorBrush,
+    D2D1_ANTIALIAS_MODE_ALIASED, D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1_BITMAP_OPTIONS_TARGET,
+    D2D1_BITMAP_PROPERTIES1, D2D1_BUFFER_PRECISION_8BPC_UNORM,
+    D2D1_COLOR_INTERPOLATION_MODE_STRAIGHT, D2D1_COLOR_SPACE_SRGB,
+    D2D1_DEVICE_CONTEXT_OPTIONS_NONE, D2D1_EXTEND_MODE_CLAMP, D2D1_FACTORY_TYPE_SINGLE_THREADED,
+    D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES, D2D1_ROUNDED_RECT, D2D1CreateFactory, ID2D1Bitmap1,
+    ID2D1ColorContext, ID2D1Device, ID2D1DeviceContext, ID2D1Factory1,
+    ID2D1GradientStopCollection1, ID2D1LinearGradientBrush, ID2D1SolidColorBrush,
 };
 use windows::Win32::Graphics::Direct3D::D3D_DRIVER_TYPE_HARDWARE;
 use windows::Win32::Graphics::Direct3D11::{
@@ -30,9 +32,9 @@ use windows::Win32::Graphics::Dxgi::Common::{
     DXGI_ALPHA_MODE_PREMULTIPLIED, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC,
 };
 use windows::Win32::Graphics::Dxgi::{
-    CreateDXGIFactory2, DXGI_PRESENT, DXGI_SCALING_STRETCH, DXGI_SWAP_CHAIN_DESC1,
-    DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_USAGE_RENDER_TARGET_OUTPUT, IDXGIDevice, IDXGIFactory2,
-    IDXGISurface, IDXGISwapChain1,
+    DXGI_PRESENT, DXGI_SCALING_STRETCH, DXGI_SWAP_CHAIN_DESC1, DXGI_SWAP_EFFECT_FLIP_DISCARD,
+    DXGI_USAGE_RENDER_TARGET_OUTPUT, IDXGIAdapter, IDXGIDevice, IDXGIFactory2, IDXGISurface,
+    IDXGISwapChain1,
 };
 use windows_numerics::Vector2;
 
@@ -140,7 +142,9 @@ pub struct Renderer {
 impl Renderer {
     pub fn new(gfx: &Gfx, hwnd: HWND, width: u32, height: u32) -> Result<Renderer> {
         unsafe {
-            let factory: IDXGIFactory2 = CreateDXGIFactory2(Default::default())?;
+            let dxgi_device: IDXGIDevice = gfx.device.cast()?;
+            let adapter: IDXGIAdapter = dxgi_device.GetAdapter()?;
+            let factory: IDXGIFactory2 = adapter.GetParent()?;
             let desc = DXGI_SWAP_CHAIN_DESC1 {
                 Width: width,
                 Height: height,
@@ -153,7 +157,7 @@ impl Renderer {
                 BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
                 BufferCount: 2,
                 Scaling: DXGI_SCALING_STRETCH,
-                SwapEffect: DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
+                SwapEffect: DXGI_SWAP_EFFECT_FLIP_DISCARD,
                 AlphaMode: DXGI_ALPHA_MODE_PREMULTIPLIED,
                 Flags: 0,
             };
@@ -167,15 +171,17 @@ impl Renderer {
 
             let d2d_context: ID2D1DeviceContext =
                 gfx.d2d_device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)?;
-            let surface: IDXGISurface = swapchain.GetBuffer::<ID3D11Texture2D>(0)?.cast()?;
+            let surface: IDXGISurface = swapchain
+                .GetBuffer::<ID3D11Texture2D>(0)?
+                .cast()?;
             let props = D2D1_BITMAP_PROPERTIES1 {
                 pixelFormat: D2D1_PIXEL_FORMAT {
                     format: DXGI_FORMAT_B8G8R8A8_UNORM,
                     alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
                 },
-                dpiX: 0.0,
-                dpiY: 0.0,
-                bitmapOptions: D2D1_BITMAP_OPTIONS_TARGET,
+                dpiX: 96.0,
+                dpiY: 96.0,
+                bitmapOptions: D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
                 colorContext: ManuallyDrop::new(None::<ID2D1ColorContext>),
             };
             let target_bitmap: ID2D1Bitmap1 =
@@ -411,3 +417,4 @@ fn rect_to_d2d(rect: Rect, origin: (i32, i32)) -> D2D_RECT_F {
         bottom: (rect.bottom() - origin.1) as f32,
     }
 }
+

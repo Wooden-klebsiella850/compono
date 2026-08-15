@@ -1,10 +1,8 @@
 {
   "app.name": "Compono",
-  "app.show_grid": "Afficher la grille",
-  "app.configure": "Configuration",
+  "app.show_grid": "Afficher la grille (Win+Alt+G)",
   "app.quit": "Quitter",
   "app.already_running": "Compono est déjà en cours d'exécution.",
-  "app.tray_tip": "Compono, placement de fenêtres sur grille",
-  "snap.enable": "Activer l'ancrage Windows",
-  "snap.disable": "Désactiver l'ancrage Windows"
+  "app.tray_tip": "Compono - Placement de fenêtres sur grille",
+  "snap.action": "Ancrage Windows (Snap)"
 }

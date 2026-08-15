@@ -163,6 +163,11 @@ pub fn reserve_autohide(work: Rect, edge: Option<ScreenEdge>) -> Rect {
     }
 }
 
+/// Zone utile effective : rcWork avec la réserve du bord auto-masqué.
+pub fn effective_work(work: Rect) -> Rect {
+    reserve_autohide(work, taskbar_autohide_edge())
+}
+
 fn rect_from_win32(r: RECT) -> Rect {
     Rect::from_edges(r.left, r.top, r.right, r.bottom)
 }

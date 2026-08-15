@@ -4,5 +4,7 @@
   "app.configure": "Settings",
   "app.quit": "Quit",
   "app.already_running": "Compono is already running.",
-  "app.tray_tip": "Compono, window snapping on a grid"
+  "app.tray_tip": "Compono, window snapping on a grid",
+  "snap.enable": "Enable Windows Snap",
+  "snap.disable": "Disable Windows Snap"
 }

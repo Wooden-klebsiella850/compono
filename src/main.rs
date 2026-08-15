@@ -6,6 +6,7 @@ mod i18n;
 mod logging;
 mod monitors;
 mod single_instance;
+mod snap;
 mod tray;
 // Le modèle de grille est exercé par les tests, son usage dans le binaire arrive
 // avec l'overlay (phase 3) et le placement (phase 5).
@@ -240,6 +241,16 @@ fn handle_tray_action(hwnd: HWND, action: tray::TrayAction) {
         }
         tray::TrayAction::Configure => {
             info!("configuration demandée (phase 8)");
+        }
+        tray::TrayAction::ToggleSnap => {
+            let was_enabled = snap::is_snap_enabled();
+            let label = if was_enabled { "désactivé" } else { "activé" };
+            if snap::set_snap(!was_enabled) {
+                info!("ancrage Windows {label}");
+                snap::restart_explorer();
+            } else {
+                error!("échec de la bascule de l'ancrage Windows");
+            }
         }
         tray::TrayAction::Quit => {
             unsafe {

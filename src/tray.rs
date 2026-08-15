@@ -20,6 +20,7 @@ pub const TRAY_ID: u32 = 1;
 
 const IDM_SHOW_GRID: u16 = 1;
 const IDM_CONFIGURE: u16 = 2;
+const IDM_TOGGLE_SNAP: u16 = 4;
 const IDM_QUIT: u16 = 3;
 
 const ICON_RESOURCE_ID: usize = 101;
@@ -29,6 +30,7 @@ pub enum TrayAction {
     None,
     ShowGrid,
     Configure,
+    ToggleSnap,
     Quit,
 }
 
@@ -91,6 +93,7 @@ pub fn on_command(wparam: WPARAM) -> TrayAction {
     match wparam.0 as u16 {
         IDM_SHOW_GRID => TrayAction::ShowGrid,
         IDM_CONFIGURE => TrayAction::Configure,
+        IDM_TOGGLE_SNAP => TrayAction::ToggleSnap,
         IDM_QUIT => TrayAction::Quit,
         _ => TrayAction::None,
     }
@@ -104,9 +107,16 @@ fn show_menu(hwnd: HWND, tr: &I18n) {
         };
         let show_grid = HSTRING::from(tr.t("app.show_grid"));
         let configure = HSTRING::from(tr.t("app.configure"));
+        let snap_enabled = crate::snap::is_snap_enabled();
+        let toggle_snap = HSTRING::from(tr.t(if snap_enabled {
+            "snap.disable"
+        } else {
+            "snap.enable"
+        }));
         let quit = HSTRING::from(tr.t("app.quit"));
         let _ = AppendMenuW(menu, MF_STRING, IDM_SHOW_GRID as usize, &show_grid);
         let _ = AppendMenuW(menu, MF_STRING, IDM_CONFIGURE as usize, &configure);
+        let _ = AppendMenuW(menu, MF_STRING, IDM_TOGGLE_SNAP as usize, &toggle_snap);
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, w!(""));
         let _ = AppendMenuW(menu, MF_STRING, IDM_QUIT as usize, &quit);
 

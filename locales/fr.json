@@ -4,5 +4,6 @@
   "app.quit": "Quitter",
   "app.already_running": "Compono est déjà en cours d'exécution.",
   "app.tray_tip": "Compono - Placement de fenêtres sur grille",
-  "snap.action": "Ancrage Windows (Snap)"
+  "snap.action": "Ancrage Windows (Snap)",
+  "startup.action": "Démarrer avec Windows"
 }

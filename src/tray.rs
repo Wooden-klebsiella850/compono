@@ -19,8 +19,10 @@ use crate::i18n::I18n;
 pub const WM_TRAY: u32 = WM_APP + 1;
 pub const TRAY_ID: u32 = 1;
 
-const IDM_TOGGLE_SNAP: u16 = 1;
-const IDM_QUIT: u16 = 2;
+const IDM_SHOW_GRID: u16 = 1;
+const IDM_TOGGLE_STARTUP: u16 = 2;
+const IDM_TOGGLE_SNAP: u16 = 3;
+const IDM_QUIT: u16 = 4;
 
 const ICON_RESOURCE_ID: usize = 101;
 
@@ -28,6 +30,7 @@ const ICON_RESOURCE_ID: usize = 101;
 pub enum TrayAction {
     None,
     ShowGrid,
+    ToggleStartup,
     ToggleSnap,
     Quit,
 }
@@ -87,8 +90,10 @@ pub fn on_callback(hwnd: HWND, lparam: LPARAM, tr: &I18n) -> TrayAction {
         _ => raw,
     };
     match msg {
-        WM_LBUTTONUP | NIN_SELECT => TrayAction::ShowGrid,
-        WM_RBUTTONUP | WM_CONTEXTMENU | WM_RBUTTONDBLCLK => show_menu(hwnd, tr),
+        // Un simple clic gauche ouvre aussi le menu contextuel, comme le clic droit.
+        WM_LBUTTONUP | NIN_SELECT | WM_RBUTTONUP | WM_CONTEXTMENU | WM_RBUTTONDBLCLK => {
+            show_menu(hwnd, tr)
+        }
         _ => TrayAction::None,
     }
 }
@@ -96,6 +101,8 @@ pub fn on_callback(hwnd: HWND, lparam: LPARAM, tr: &I18n) -> TrayAction {
 /// Traite un WM_COMMAND issu du menu contextuel.
 pub fn on_command(wparam: WPARAM) -> TrayAction {
     match wparam.0 as u16 {
+        IDM_SHOW_GRID => TrayAction::ShowGrid,
+        IDM_TOGGLE_STARTUP => TrayAction::ToggleStartup,
         IDM_TOGGLE_SNAP => TrayAction::ToggleSnap,
         IDM_QUIT => TrayAction::Quit,
         _ => TrayAction::None,
@@ -108,6 +115,24 @@ fn show_menu(hwnd: HWND, tr: &I18n) -> TrayAction {
             Ok(menu) => menu,
             Err(_) => return TrayAction::None,
         };
+        let show_grid = HSTRING::from(tr.t("app.show_grid"));
+        let _ = AppendMenuW(menu, MF_STRING, IDM_SHOW_GRID as usize, &show_grid);
+        let _ = AppendMenuW(menu, MF_SEPARATOR, 0, w!(""));
+
+        let startup_enabled = crate::startup::is_enabled();
+        let toggle_startup_text = if startup_enabled {
+            format!("{} [ON]", tr.t("startup.action"))
+        } else {
+            format!("{} [OFF]", tr.t("startup.action"))
+        };
+        let toggle_startup = HSTRING::from(toggle_startup_text);
+        let startup_flags = if startup_enabled {
+            MF_STRING | MF_CHECKED
+        } else {
+            MF_STRING | MF_UNCHECKED
+        };
+        let _ = AppendMenuW(menu, startup_flags, IDM_TOGGLE_STARTUP as usize, &toggle_startup);
+
         let snap_enabled = crate::snap::is_snap_enabled();
         let toggle_snap_text = if snap_enabled {
             format!("{} [ON]", tr.t("snap.action"))

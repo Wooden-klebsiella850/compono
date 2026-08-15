@@ -90,9 +90,11 @@ window does not disturb it.
 
 ### Tray menu
 
-Right click the tray icon for:
+Left click or right click the tray icon for:
 
 - **Show grid** (`Win+Alt+G`) for the foreground window.
+- **Start with Windows** on/off, registering `compono.exe` in
+  `HKCU\...\Run` (no administrator rights required for this one).
 - **Windows Snap** on/off, toggling the OS's own window arrangement through
   the registry and `SystemParametersInfo`, the same effect as disabling it
   from Windows Settings.

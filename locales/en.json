@@ -4,5 +4,6 @@
   "app.quit": "Quit",
   "app.already_running": "Compono is already running.",
   "app.tray_tip": "Compono - Window Grid Placement",
-  "snap.action": "Windows Snap"
+  "snap.action": "Windows Snap",
+  "startup.action": "Start with Windows"
 }

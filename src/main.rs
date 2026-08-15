@@ -15,6 +15,7 @@ mod placement;
 mod session;
 mod single_instance;
 mod snap;
+mod startup;
 mod tray;
 mod grid;
 
@@ -504,6 +505,14 @@ fn handle_tray_action(hwnd: HWND, action: tray::TrayAction) {
         tray::TrayAction::None => {}
         tray::TrayAction::ShowGrid => {
             toggle_overlay();
+        }
+        tray::TrayAction::ToggleStartup => {
+            let was_enabled = startup::is_enabled();
+            if startup::set_enabled(!was_enabled) {
+                info!("démarrage avec Windows {}", if was_enabled { "désactivé" } else { "activé" });
+            } else {
+                error!("échec de la bascule du démarrage avec Windows");
+            }
         }
         tray::TrayAction::ToggleSnap => {
             let was_enabled = snap::is_snap_enabled();

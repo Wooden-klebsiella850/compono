@@ -5,8 +5,10 @@ mod config;
 mod i18n;
 mod logging;
 mod single_instance;
+mod tray;
 
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use log::{error, info};
@@ -18,10 +20,17 @@ use windows::Win32::UI::HiDpi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::*;
 
+use i18n::I18n;
 use single_instance::InstanceGuard;
+
+/// Traductions chargées, accessibles depuis la procédure de fenêtre.
+static TR: OnceLock<I18n> = OnceLock::new();
 
 /// Id du message "afficher la grille" reçu depuis une deuxième instance.
 static SHOW_GRID_MSG: AtomicU32 = AtomicU32::new(0);
+
+/// Id du message "TaskbarCreated" pour recréer l'icône après un redémarrage d'explorer.
+static TASKBAR_CREATED_MSG: AtomicU32 = AtomicU32::new(0);
 
 fn main() {
     // Instance unique avant toute initialisation. La seconde instance notifie et s'arrête.
@@ -45,12 +54,20 @@ fn main() {
     let lang = config.lang.as_deref().unwrap_or(&system_lang);
     let tr = i18n::I18n::load(lang, &appdata.join("locales"));
     info!("{} v{} démarre", tr.t("app.name"), env!("CARGO_PKG_VERSION"));
+    let _ = TR.set(tr);
 
     SHOW_GRID_MSG.store(guard.show_grid_message(), Ordering::Relaxed);
+    TASKBAR_CREATED_MSG.store(tray::taskbar_created_message(), Ordering::Relaxed);
 
-    if !create_core_window() {
-        error!("échec de création de la fenêtre principale");
-        return;
+    let hwnd = match create_core_window() {
+        Some(hwnd) => hwnd,
+        None => {
+            error!("échec de création de la fenêtre principale");
+            return;
+        }
+    };
+    if let Err(err) = tray::add(hwnd, TR.get().expect("i18n non initialisé")) {
+        error!("échec d'ajout de l'icône tray : {err}");
     }
 
     info!("boucle de messages démarrée");
@@ -74,13 +91,13 @@ fn default_lang() -> String {
 }
 
 /// Crée la fenêtre cachée qui recevra les messages du tray et des autres instances.
-fn create_core_window() -> bool {
+fn create_core_window() -> Option<HWND> {
     unsafe {
         let hinstance = match GetModuleHandleW(None) {
             Ok(h) => h,
             Err(err) => {
                 error!("GetModuleHandleW : {err}");
-                return false;
+                return None;
             }
         };
 
@@ -92,7 +109,7 @@ fn create_core_window() -> bool {
         };
         if RegisterClassW(&wc) == 0 {
             error!("RegisterClassW a échoué");
-            return false;
+            return None;
         }
 
         match CreateWindowExW(
@@ -109,10 +126,10 @@ fn create_core_window() -> bool {
             Some(HINSTANCE(hinstance.0)),
             None,
         ) {
-            Ok(_) => true,
+            Ok(hwnd) => Some(hwnd),
             Err(err) => {
                 error!("CreateWindowExW : {err}");
-                false
+                None
             }
         }
     }
@@ -138,15 +155,28 @@ unsafe extern "system" fn core_wnd_proc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
+    let tr = TR.get();
     match msg {
         WM_DESTROY => {
+            tray::remove(hwnd);
             PostQuitMessage(0);
             LRESULT(0)
         }
         WM_QUERYENDSESSION => LRESULT(1),
         WM_ENDSESSION => {
+            tray::remove(hwnd);
             if wparam.0 != 0 {
                 PostQuitMessage(0);
+            }
+            LRESULT(0)
+        }
+        WM_COMMAND => {
+            handle_tray_action(hwnd, tray::on_command(wparam));
+            LRESULT(0)
+        }
+        other if other == tray::WM_TRAY => {
+            if let Some(tr) = tr {
+                handle_tray_action(hwnd, tray::on_callback(hwnd, lparam, tr));
             }
             LRESULT(0)
         }
@@ -155,6 +185,31 @@ unsafe extern "system" fn core_wnd_proc(
             info!("demande d'affichage de la grille reçue");
             LRESULT(0)
         }
+        other if other == TASKBAR_CREATED_MSG.load(Ordering::Relaxed) => {
+            if let Some(tr) = tr {
+                if let Err(err) = tray::add(hwnd, tr) {
+                    error!("réajout de l'icône tray après redémarrage d'explorer : {err}");
+                }
+            }
+            LRESULT(0)
+        }
         _ => DefWindowProcW(hwnd, msg, wparam, lparam),
+    }
+}
+
+fn handle_tray_action(hwnd: HWND, action: tray::TrayAction) {
+    match action {
+        tray::TrayAction::None => {}
+        tray::TrayAction::ShowGrid => {
+            info!("bascule de la grille demandée (phase 3)");
+        }
+        tray::TrayAction::Configure => {
+            info!("configuration demandée (phase 8)");
+        }
+        tray::TrayAction::Quit => {
+            unsafe {
+                let _ = PostMessageW(Some(hwnd), WM_CLOSE, WPARAM(0), LPARAM(0));
+            }
+        }
     }
 }

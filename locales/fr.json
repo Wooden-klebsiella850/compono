@@ -3,5 +3,6 @@
   "app.show_grid": "Afficher la grille",
   "app.configure": "Configuration",
   "app.quit": "Quitter",
-  "app.already_running": "Compono est déjà en cours d'exécution."
+  "app.already_running": "Compono est déjà en cours d'exécution.",
+  "app.tray_tip": "Compono, placement de fenêtres sur grille"
 }

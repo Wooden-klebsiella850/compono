@@ -3,5 +3,6 @@
   "app.show_grid": "Show grid",
   "app.configure": "Settings",
   "app.quit": "Quit",
-  "app.already_running": "Compono is already running."
+  "app.already_running": "Compono is already running.",
+  "app.tray_tip": "Compono, window snapping on a grid"
 }

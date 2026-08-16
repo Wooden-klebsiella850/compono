@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="res/icon.png" width="128" height="128" alt="Compono icon">
 </p>
 
@@ -18,6 +18,13 @@
 Compono is a lightweight, high-performance window manager and placement overlay for Windows. Drag a window to any screen edge or use hotkeys to snap, resize, or navigate windows across a configurable grid.
 
 Unlike default Windows Snap, Compono applies direct `SetWindowPos` geometry, reliably managing elevated processes (Command Prompt, PowerShell, Windows Terminal), WinUI applications, and XAML Island windows across multi-monitor setups.
+
+## Screenshots
+
+| Edge Detection & Halo Trigger | Custom Rectangle Selection |
+|---|---|
+| ![Edge detection with halo overlay](res/screenshot1.png) | ![Drawing destination rectangle on the grid](res/screenshot2.png) |
+| *Screen edge dwell detection triggers the grid overlay.* | *Click and drag to trace your exact target window rectangle.* |
 
 ## Features
 

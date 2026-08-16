@@ -3,6 +3,7 @@
 //! Les Ã©vÃ©nements sont mis en file puis consommÃ©s par la boucle de messages.
 
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
@@ -33,6 +34,17 @@ static QUEUE: Mutex<VecDeque<InputEvent>> = Mutex::new(VecDeque::new());
 static MOUSE_HOOK: Mutex<Option<usize>> = Mutex::new(None);
 static KEYBOARD_HOOK: Mutex<Option<usize>> = Mutex::new(None);
 static EVENT_HOOK: Mutex<Option<usize>> = Mutex::new(None);
+static GRID_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// DÃ©finit si la grille ou le mode placement est actif (pour capturer Ã‰chap).
+pub fn set_grid_active(active: bool) {
+    GRID_ACTIVE.store(active, Ordering::Relaxed);
+}
+
+/// Indique si la grille est active.
+pub fn is_grid_active() -> bool {
+    GRID_ACTIVE.load(Ordering::Relaxed)
+}
 
 /// Installe les hooks sur la thread appelante (la thread UI).
 pub fn install() -> windows::core::Result<()> {
@@ -119,10 +131,16 @@ unsafe extern "system" fn keyboard_proc(ncode: i32, wparam: WPARAM, lparam: LPAR
         let is_key_up = wparam.0 == WM_KEYUP as usize || wparam.0 == WM_SYSKEYUP as usize;
 
         if is_key_down {
+            // Touche Ã‰chap : sortir de la grille si celle-ci est ouverte ou active
+            if is_grid_active() && vk == VK_ESCAPE.0 as u32 {
+                push(InputEvent::GridCancel);
+                return LRESULT(1);
+            }
+
             let alt_down = (GetAsyncKeyState(VK_MENU.0 as i32) as u16 & 0x8000) != 0;
             let ctrl_down = (GetAsyncKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0;
 
-            // Si Alt est maintenu et Ctrl est relÃ¢chÃ© pendant l'appui sur une flÃ¨che directionnelle :
+            // Si Alt est maintenu et Ctrl est relÃ¢chÃ© pendant l'appui sur une flÃ¨che :
             if alt_down && !ctrl_down {
                 match vk {
                     c if c == VK_LEFT.0 as u32 => {

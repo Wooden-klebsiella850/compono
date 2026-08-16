@@ -33,7 +33,7 @@ Unlike default Windows Snap, Compono applies direct `SetWindowPos` geometry, rel
 - **Keyboard Snapping (`Ctrl+Alt+Arrows`)**: Instant cycling between halves, quarters, two-thirds, corners, and full screen.
 - **Grid Navigation (`Alt+Arrows`)**: Move windows cell-by-cell on the grid using arrow keys.
 - **Multi-Monitor Seamless Transition**: Moving a window past screen boundaries jumps directly to the adjacent monitor.
-- **Quick Close Button**: Click the dedicated close cell (marked with a red cross) at the top-right corner to exit the grid.
+- **Quick Close (Escape & Top-Right Button)**: Press Esc at any time or click the top-right cell (marked with a red cross) to exit the grid immediately.
 - **Windows Snap Integration**: Toggle native Windows Snap on or off directly from the tray with clean Explorer reload.
 - **Multi-Monitor and Per-Monitor DPI Aware**: Hardware-accelerated Direct2D and DirectComposition rendering.
 - **Bilingual**: French and English interface automatically matching your system locale.
@@ -51,7 +51,8 @@ Unlike default Windows Snap, Compono applies direct `SetWindowPos` geometry, rel
 | `Ctrl+Alt+Down` (direct) | Snap vertical bottom | Cycles: Bottom half (50%) -> Bottom quarter (25%) |
 | `Alt + Arrows` (hold Alt) | Grid cell movement | Moves the active window step-by-step across grid cells |
 | `Alt + Arrows` (at screen edge) | Cross-monitor jump | Jumps window and grid focus to the adjacent screen |
-| `Esc` / Release `Alt` | Confirm & exit grid | Locks window position and hides the overlay |
+| `Esc` | Exit / cancel grid | Closes the active grid overlay and cancels placement |
+| Release `Alt` | Confirm keyboard placement | Locks window position on the grid and hides the overlay |
 
 ## Usage
 

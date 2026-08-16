@@ -275,10 +275,16 @@ fn process_input_events() {
                 continue;
             }
             hooks::InputEvent::GridFinish | hooks::InputEvent::GridCancel => {
+                hooks::set_grid_active(false);
                 if let Ok(mut guard) = KBD_NAV.lock() {
                     *guard = None;
                 }
-                if let Ok(mut guard) = OVERLAY.lock() {
+                if let Ok(mut session_guard) = SESSION.lock() {
+                    if let Some(session) = session_guard.as_mut() {
+                        let action = session.cancel();
+                        apply_session_action(action);
+                    }
+                } else if let Ok(mut guard) = OVERLAY.lock() {
                     if let Some(manager) = guard.as_mut() {
                         manager.hide();
                     }
@@ -402,6 +408,7 @@ fn handle_grid_navigate(key: arrow_snap::ArrowKey) {
         }
     }
 
+    hooks::set_grid_active(true);
     let target_rect = grid.cell_range_rect(range);
     placement::place_window(hwnd, target_rect);
 
@@ -428,6 +435,7 @@ fn apply_session_action(action: session::SessionAction) {
     match action {
         session::SessionAction::None => {}
         session::SessionAction::ShowGrid { monitor, edge } => {
+            hooks::set_grid_active(true);
             let halo = edge.map(|e| overlay::render::HaloState {
                 edge: e,
                 thickness: session::HALO_THICKNESS,
@@ -443,6 +451,7 @@ fn apply_session_action(action: session::SessionAction) {
             }
         }
         session::SessionAction::HideGrid => {
+            hooks::set_grid_active(false);
             if let Ok(mut guard) = OVERLAY.lock() {
                 if let Some(manager) = guard.as_mut() {
                     manager.hide();
@@ -453,6 +462,7 @@ fn apply_session_action(action: session::SessionAction) {
             monitor,
             target_window,
         } => {
+            hooks::set_grid_active(true);
             if let Some(raw) = target_window {
                 let hwnd = HWND(raw as *mut core::ffi::c_void);
                 if !hwnd.0.is_null() && placement::is_placeable_window(hwnd) {
@@ -479,6 +489,7 @@ fn apply_session_action(action: session::SessionAction) {
             }
         }
         session::SessionAction::UpdateGrid { monitor, selection } => {
+            hooks::set_grid_active(true);
             if let Ok(mut guard) = OVERLAY.lock() {
                 let manager = guard.get_or_insert_with(|| {
                     overlay::OverlayManager::new(grid::GridOptions::default())
@@ -493,13 +504,16 @@ fn apply_session_action(action: session::SessionAction) {
             }
         }
         session::SessionAction::Cancel { target_window } => {
+            hooks::set_grid_active(false);
             if let Some(raw) = target_window {
                 let hwnd = HWND(raw as *mut core::ffi::c_void);
-                if !hwnd.0.is_null() {
+                if !hwnd.0.is_null() && placement::is_placeable_window(hwnd) {
                     let hwnd = placement::get_top_level_window_for_hwnd(hwnd);
-                    unsafe {
-                        let _ = ShowWindow(hwnd, SW_SHOW);
-                        let _ = SetForegroundWindow(hwnd);
+                    if placement::is_placeable_window(hwnd) {
+                        unsafe {
+                            let _ = ShowWindow(hwnd, SW_SHOW);
+                            let _ = SetForegroundWindow(hwnd);
+                        }
                     }
                 }
             }
@@ -510,6 +524,7 @@ fn apply_session_action(action: session::SessionAction) {
             }
         }
         session::SessionAction::Place { target_window, rect } => {
+            hooks::set_grid_active(false);
             let hwnd = target_window
                 .map(|w| HWND(w as *mut core::ffi::c_void))
                 .unwrap_or_else(|| unsafe { GetForegroundWindow() });

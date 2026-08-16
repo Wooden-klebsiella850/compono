@@ -1,4 +1,4 @@
-//! Placement et redimensionnement d'une fenêtre sur un rectangle de grille.
+﻿//! Placement et redimensionnement d'une fenêtre sur un rectangle de grille.
 
 use windows::core::BOOL;
 use windows::Win32::Foundation::{HWND, LPARAM, RECT};
@@ -28,7 +28,7 @@ pub fn is_placeable_window(hwnd: HWND) -> bool {
                 || name == "WorkerW"
                 || name == "Shell_TrayWnd"
                 || name == "Shell_SecondaryTrayWnd"
-                || name == "Compono.Overlay"
+                || name == "Compono.Overlay" || name == "Compono.Core"
             {
                 return false;
             }

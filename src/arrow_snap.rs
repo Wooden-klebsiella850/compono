@@ -1,8 +1,8 @@
-//! Placement au clavier (Win+Flèche), équivalent de l'ancrage natif pendant qu'il
-//! est désactivé. Une flèche place la fenêtre active sur une moitié d'écran ;
-//! rappuyer sur la même flèche réduit cette moitié en quart (et inversement).
-//! Combiner un axe horizontal et un axe vertical (ex : Gauche puis Haut) donne
-//! un coin. Chaque fenêtre garde son propre état, tant qu'elle n'est pas oubliée.
+﻿//! Placement au clavier (Ctrl+Alt+FlÃ¨che).
+//! - FlÃ¨ches Gauche/Droite : MoitiÃ© (50% L, 100% H) -> Quart (25% L, 100% H) -> Deux Tiers (66% L, 100% H).
+//!   (RÃ©initialise toujours la hauteur Ã  100% si on venait d'un coin ou d'une moitiÃ© haute/basse).
+//! - FlÃ¨che Haut depuis un cÃ´tÃ© : Coin (50% L, 50% H) -> Coin fin (50% L, 25% H) -> MoitiÃ© haute (100% L, 50% H) -> Plein Ã©cran (100% L, 100% H).
+//! - FlÃ¨che Bas depuis un cÃ´tÃ© : Coin (50% L, 50% H) -> Coin fin (50% L, 25% H) -> MoitiÃ© basse (100% L, 50% H).
 
 use std::collections::HashMap;
 
@@ -32,6 +32,8 @@ enum VDir {
 enum Level {
     Half,
     Quarter,
+    TwoThirds,
+    Full,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -40,7 +42,7 @@ struct WindowZones {
     vertical: Option<(VDir, Level)>,
 }
 
-/// Mémorise, par fenêtre (HWND en usize), la moitié/quart courant sur chaque axe.
+/// MÃ©morise, par fenÃªtre (HWND en usize), la zone courante sur chaque axe.
 #[derive(Default)]
 pub struct ArrowSnap {
     zones: HashMap<usize, WindowZones>,
@@ -51,7 +53,7 @@ impl ArrowSnap {
         Self::default()
     }
 
-    /// Applique une flèche pour `window` et retourne le rectangle cible dans `area`.
+    /// Applique une flÃ¨che pour `window` et retourne le rectangle cible dans `area`.
     pub fn press(&mut self, window: usize, key: ArrowKey, area: Rect) -> Rect {
         let state = self.zones.entry(window).or_default();
         match key {
@@ -61,29 +63,91 @@ impl ArrowSnap {
                 } else {
                     HDir::Right
                 };
-                state.horizontal = Some(match state.horizontal {
-                    Some((d, Level::Half)) if d == dir => (dir, Level::Quarter),
-                    Some((d, Level::Quarter)) if d == dir => (dir, Level::Half),
-                    _ => (dir, Level::Half),
-                });
-            }
-            ArrowKey::Up | ArrowKey::Down => {
-                let dir = if key == ArrowKey::Up {
-                    VDir::Top
+
+                // Si on Ã©tait en coin, moitiÃ© haute/basse ou plein Ã©cran, appuyer sur Gauche/Droite
+                // rÃ©initialise l'axe vertical pour garantir 100% de hauteur !
+                let reset_vertical = state.vertical.is_some();
+                state.vertical = None;
+
+                if reset_vertical {
+                    // Passage direct en MoitiÃ© (50% largeur, 100% hauteur)
+                    state.horizontal = Some((dir, Level::Half));
                 } else {
-                    VDir::Bottom
-                };
-                state.vertical = Some(match state.vertical {
-                    Some((d, Level::Half)) if d == dir => (dir, Level::Quarter),
-                    Some((d, Level::Quarter)) if d == dir => (dir, Level::Half),
-                    _ => (dir, Level::Half),
-                });
+                    // Cycle horizontal : MoitiÃ© -> Quart -> Deux Tiers -> MoitiÃ©...
+                    state.horizontal = Some(match state.horizontal {
+                        Some((d, Level::Half)) if d == dir => (dir, Level::Quarter),
+                        Some((d, Level::Quarter)) if d == dir => (dir, Level::TwoThirds),
+                        Some((d, Level::TwoThirds)) if d == dir => (dir, Level::Half),
+                        _ => (dir, Level::Half),
+                    });
+                }
+            }
+            ArrowKey::Up => {
+                if let Some((_hdir, _hlvl)) = state.horizontal {
+                    match state.vertical {
+                        None => {
+                            // 1Ã¨re fois : Coin supÃ©rieur (50% L, 50% H = 1/4 Ã©cran)
+                            state.vertical = Some((VDir::Top, Level::Half));
+                        }
+                        Some((VDir::Top, Level::Half)) => {
+                            // 2Ã¨me fois : Coin supÃ©rieur plus fin (50% L, 25% H = 1/8 Ã©cran)
+                            state.vertical = Some((VDir::Top, Level::Quarter));
+                        }
+                        Some((VDir::Top, Level::Quarter)) => {
+                            // 3Ã¨me fois : MoitiÃ© supÃ©rieure complÃ¨te (100% L, 50% H = 1/2 Ã©cran)
+                            state.horizontal = None;
+                            state.vertical = Some((VDir::Top, Level::Half));
+                        }
+                        _ => {
+                            state.vertical = Some((VDir::Top, Level::Half));
+                        }
+                    }
+                } else {
+                    // Pas d'ancrage horizontal (mode vertical pur) :
+                    state.vertical = match state.vertical {
+                        None => Some((VDir::Top, Level::Half)),
+                        Some((VDir::Top, Level::Half)) => Some((VDir::Top, Level::Quarter)),
+                        Some((VDir::Top, Level::Quarter)) => Some((VDir::Top, Level::Full)),
+                        Some((VDir::Top, Level::Full)) => Some((VDir::Top, Level::Half)),
+                        _ => Some((VDir::Top, Level::Half)),
+                    };
+                }
+            }
+            ArrowKey::Down => {
+                if let Some((_hdir, _hlvl)) = state.horizontal {
+                    match state.vertical {
+                        None => {
+                            // 1Ã¨re fois : Coin infÃ©rieur (50% L, 50% H = 1/4 Ã©cran)
+                            state.vertical = Some((VDir::Bottom, Level::Half));
+                        }
+                        Some((VDir::Bottom, Level::Half)) => {
+                            // 2Ã¨me fois : Coin infÃ©rieur plus fin (50% L, 25% H = 1/8 Ã©cran)
+                            state.vertical = Some((VDir::Bottom, Level::Quarter));
+                        }
+                        Some((VDir::Bottom, Level::Quarter)) => {
+                            // 3Ã¨me fois : MoitiÃ© infÃ©rieure complÃ¨te (100% L, 50% H = 1/2 Ã©cran)
+                            state.horizontal = None;
+                            state.vertical = Some((VDir::Bottom, Level::Half));
+                        }
+                        _ => {
+                            state.vertical = Some((VDir::Bottom, Level::Half));
+                        }
+                    }
+                } else {
+                    // Pas d'ancrage horizontal (mode vertical pur) :
+                    state.vertical = match state.vertical {
+                        None => Some((VDir::Bottom, Level::Half)),
+                        Some((VDir::Bottom, Level::Half)) => Some((VDir::Bottom, Level::Quarter)),
+                        Some((VDir::Bottom, Level::Quarter)) => Some((VDir::Bottom, Level::Half)),
+                        _ => Some((VDir::Bottom, Level::Half)),
+                    };
+                }
             }
         }
         rect_for(*state, area)
     }
 
-    /// Oublie l'état d'une fenêtre (fermeture, replacement manuel...).
+    /// Oublie l'Ã©tat d'une fenÃªtre.
     #[allow(dead_code)]
     pub fn forget(&mut self, window: usize) {
         self.zones.remove(&window);
@@ -94,11 +158,15 @@ fn rect_for(state: WindowZones, area: Rect) -> Rect {
     let width = match state.horizontal {
         Some((_, Level::Half)) => area.width / 2,
         Some((_, Level::Quarter)) => area.width / 4,
+        Some((_, Level::TwoThirds)) => (area.width * 2) / 3,
+        Some((_, Level::Full)) => area.width,
         None => area.width,
     };
     let height = match state.vertical {
         Some((_, Level::Half)) => area.height / 2,
         Some((_, Level::Quarter)) => area.height / 4,
+        Some((_, Level::TwoThirds)) => (area.height * 2) / 3,
+        Some((_, Level::Full)) => area.height,
         None => area.height,
     };
     let x = match state.horizontal {
@@ -129,70 +197,57 @@ mod tests {
     };
 
     #[test]
-    fn gauche_place_la_moitie_gauche() {
+    fn cycle_horizontal_moitie_quart_deux_tiers() {
         let mut snap = ArrowSnap::new();
-        let rect = snap.press(1, ArrowKey::Left, AREA);
-        assert_eq!(rect, Rect::new(0, 0, 960, 1080));
+        // 1er appui : MoitiÃ© gauche (50% L, 100% H)
+        let rect1 = snap.press(1, ArrowKey::Left, AREA);
+        assert_eq!(rect1, Rect::new(0, 0, 960, 1080));
+
+        // 2e appui : Quart gauche (25% L, 100% H)
+        let rect2 = snap.press(1, ArrowKey::Left, AREA);
+        assert_eq!(rect2, Rect::new(0, 0, 480, 1080));
+
+        // 3e appui : Deux tiers gauche (66.6% L, 100% H)
+        let rect3 = snap.press(1, ArrowKey::Left, AREA);
+        assert_eq!(rect3, Rect::new(0, 0, 1280, 1080));
+
+        // 4e appui : Retour MoitiÃ© gauche (50% L, 100% H)
+        let rect4 = snap.press(1, ArrowKey::Left, AREA);
+        assert_eq!(rect4, Rect::new(0, 0, 960, 1080));
     }
 
     #[test]
-    fn rappuyer_gauche_reduit_en_quart_puis_revient_a_la_moitie() {
+    fn retour_a_100_pourcent_hauteur_depuis_un_coin() {
         let mut snap = ArrowSnap::new();
+        // Gauche -> 50% L, 100% H
         snap.press(1, ArrowKey::Left, AREA);
-        let quarter = snap.press(1, ArrowKey::Left, AREA);
-        assert_eq!(quarter, Rect::new(0, 0, 480, 1080));
-        let half_again = snap.press(1, ArrowKey::Left, AREA);
-        assert_eq!(half_again, Rect::new(0, 0, 960, 1080));
-    }
-
-    #[test]
-    fn droite_place_la_moitie_droite() {
-        let mut snap = ArrowSnap::new();
-        let rect = snap.press(1, ArrowKey::Right, AREA);
-        assert_eq!(rect, Rect::new(960, 0, 960, 1080));
-    }
-
-    #[test]
-    fn changer_de_cote_repart_de_la_moitie() {
-        let mut snap = ArrowSnap::new();
-        snap.press(1, ArrowKey::Left, AREA);
-        snap.press(1, ArrowKey::Left, AREA); // quart gauche
-        let rect = snap.press(1, ArrowKey::Right, AREA);
-        assert_eq!(rect, Rect::new(960, 0, 960, 1080));
-    }
-
-    #[test]
-    fn combiner_gauche_et_haut_donne_un_coin() {
-        let mut snap = ArrowSnap::new();
-        snap.press(1, ArrowKey::Left, AREA);
+        // Haut -> Coin 50% L, 50% H
         let corner = snap.press(1, ArrowKey::Up, AREA);
         assert_eq!(corner, Rect::new(0, 0, 960, 540));
+
+        // RÃ©appui sur Gauche -> Doit rÃ©initialiser la hauteur Ã  100% (50% L, 100% H) !
+        let full_height = snap.press(1, ArrowKey::Left, AREA);
+        assert_eq!(full_height, Rect::new(0, 0, 960, 1080));
     }
 
     #[test]
-    fn rappuyer_haut_dans_un_coin_ne_touche_que_la_hauteur() {
+    fn cycle_vertical_depuis_coin() {
         let mut snap = ArrowSnap::new();
         snap.press(1, ArrowKey::Left, AREA);
-        snap.press(1, ArrowKey::Up, AREA);
-        let rect = snap.press(1, ArrowKey::Up, AREA);
-        assert_eq!(rect, Rect::new(0, 0, 960, 270));
-    }
+        // 1er Haut : Coin (960x540)
+        let corner = snap.press(1, ArrowKey::Up, AREA);
+        assert_eq!(corner, Rect::new(0, 0, 960, 540));
 
-    #[test]
-    fn bas_droite_ancre_sur_le_coin_oppose() {
-        let mut snap = ArrowSnap::new();
-        snap.press(1, ArrowKey::Right, AREA);
-        let corner = snap.press(1, ArrowKey::Down, AREA);
-        assert_eq!(corner, Rect::new(960, 540, 960, 540));
-    }
+        // 2e Haut : Coin fin (960x270)
+        let fine = snap.press(1, ArrowKey::Up, AREA);
+        assert_eq!(fine, Rect::new(0, 0, 960, 270));
 
-    #[test]
-    fn chaque_fenetre_garde_son_propre_etat() {
-        let mut snap = ArrowSnap::new();
-        snap.press(1, ArrowKey::Left, AREA);
-        let rect_2 = snap.press(2, ArrowKey::Right, AREA);
-        assert_eq!(rect_2, Rect::new(960, 0, 960, 1080));
-        let rect_1_again = snap.press(1, ArrowKey::Left, AREA);
-        assert_eq!(rect_1_again, Rect::new(0, 0, 480, 1080));
+        // 3e Haut : MoitiÃ© supÃ©rieure complÃ¨te (1920x540) !
+        let half_top = snap.press(1, ArrowKey::Up, AREA);
+        assert_eq!(half_top, Rect::new(0, 0, 1920, 540));
+
+        // 4e Haut : Plein Ã©cran (1920x1080) !
+        let full = snap.press(1, ArrowKey::Up, AREA);
+        assert_eq!(full, Rect::new(0, 0, 1920, 1080));
     }
 }

@@ -1,4 +1,4 @@
-//! Énumération des moniteurs, zone utile (rcWork), DPI et barre des tâches auto-masquée.
+﻿//! Énumération des moniteurs, zone utile (rcWork), DPI et barre des tâches auto-masquée.
 
 use std::sync::Mutex;
 
@@ -166,6 +166,50 @@ pub fn reserve_autohide(work: Rect, edge: Option<ScreenEdge>) -> Rect {
 /// Zone utile effective : rcWork avec la réserve du bord auto-masqué.
 pub fn effective_work(work: Rect) -> Rect {
     reserve_autohide(work, taskbar_autohide_edge())
+}
+
+/// Trouve le moniteur adjacent dans une direction donnÃ©e (Gauche, Droite, Haut, Bas).
+pub fn adjacent_monitor(current_idx: usize, edge: ScreenEdge) -> Option<(usize, MonitorInfo)> {
+    let monitors = current();
+    if monitors.len() <= 1 {
+        return None;
+    }
+    let current_m = monitors.get(current_idx)?;
+
+    match edge {
+        ScreenEdge::Left => {
+            monitors
+                .iter()
+                .enumerate()
+                .filter(|(i, m)| *i != current_idx && m.bounds.x < current_m.bounds.x)
+                .min_by_key(|(_, m)| (current_m.bounds.x - m.bounds.right()).abs())
+                .map(|(i, m)| (i, *m))
+        }
+        ScreenEdge::Right => {
+            monitors
+                .iter()
+                .enumerate()
+                .filter(|(i, m)| *i != current_idx && m.bounds.x > current_m.bounds.x)
+                .min_by_key(|(_, m)| (m.bounds.x - current_m.bounds.right()).abs())
+                .map(|(i, m)| (i, *m))
+        }
+        ScreenEdge::Top => {
+            monitors
+                .iter()
+                .enumerate()
+                .filter(|(i, m)| *i != current_idx && m.bounds.y < current_m.bounds.y)
+                .min_by_key(|(_, m)| (current_m.bounds.y - m.bounds.bottom()).abs())
+                .map(|(i, m)| (i, *m))
+        }
+        ScreenEdge::Bottom => {
+            monitors
+                .iter()
+                .enumerate()
+                .filter(|(i, m)| *i != current_idx && m.bounds.y > current_m.bounds.y)
+                .min_by_key(|(_, m)| (m.bounds.y - current_m.bounds.bottom()).abs())
+                .map(|(i, m)| (i, *m))
+        }
+    }
 }
 
 fn rect_from_win32(r: RECT) -> Rect {

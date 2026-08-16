@@ -1,4 +1,4 @@
-//! Modèle de grille de placement, pur et testable, sans aucune API Win32.
+﻿//! Modèle de grille de placement, pur et testable, sans aucune API Win32.
 //!
 //! Tout est en pixels physiques et en coordonnées d'écran virtuel (un écran à
 //! gauche du principal a des coordonnées x négatives). Deux modes :
@@ -251,6 +251,33 @@ impl Grid {
     }
 
     /// Rectangle couvrant la plage de cellules, réduit de la gouttière (gap).
+    /// Trouve la plage de cellules (CellRange) la plus proche d'un rectangle en coordonnÃ©es Ã©cran.
+    pub fn range_for_rect(&self, rect: Rect) -> CellRange {
+        let cols = self.cols();
+        let rows = self.rows();
+        if cols == 0 || rows == 0 {
+            return CellRange { col0: 0, row0: 0, col1: 0, row1: 0 };
+        }
+        let col0 = (0..cols)
+            .min_by_key(|&c| (self.col_bounds(c).0 - rect.x).abs())
+            .unwrap_or(0);
+        let col1 = (col0..cols)
+            .min_by_key(|&c| (self.col_bounds(c).1 - rect.right()).abs())
+            .unwrap_or(col0);
+        let row0 = (0..rows)
+            .min_by_key(|&r| (self.row_bounds(r).0 - rect.y).abs())
+            .unwrap_or(0);
+        let row1 = (row0..rows)
+            .min_by_key(|&r| (self.row_bounds(r).1 - rect.bottom()).abs())
+            .unwrap_or(row0);
+        CellRange {
+            col0,
+            row0,
+            col1,
+            row1,
+        }
+    }
+
     pub fn cell_range_rect(&self, range: CellRange) -> Rect {
         let range = self.clamp_range(range);
         let (left, _) = self.col_bounds(range.col0);

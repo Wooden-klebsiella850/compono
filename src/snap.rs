@@ -1,5 +1,5 @@
-//! Ancrage des fenêtres (Aero Snap) : lecture et bascule du réglage Windows.
-//! Équivalent natif de Activer_Desactiver_Ancrage_Fenêtres.bat.
+﻿//! Ancrage des fenÃªtres (Aero Snap) : lecture et bascule du rÃ©glage Windows.
+//! Ã‰quivalent natif de Activer_Desactiver_Ancrage_FenÃªtres.bat.
 
 use windows::core::HSTRING;
 use windows::Win32::System::Registry::{
@@ -7,7 +7,7 @@ use windows::Win32::System::Registry::{
     RegGetValueW, RegOpenKeyExW, RegSetValueExW,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    SPIF_SENDCHANGE, SPIF_UPDATEINIFILE, SPI_SETDRAGFROMMAXIMIZE, SystemParametersInfoW,
+    SPIF_SENDCHANGE, SPIF_UPDATEINIFILE, SYSTEM_PARAMETERS_INFO_ACTION, SystemParametersInfoW,
 };
 
 const DESKTOP_KEY: &str = "Control Panel\\Desktop";
@@ -17,6 +17,11 @@ const EXPLORER_ADVANCED_KEY: &str =
     "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced";
 const SNAP_ASSIST_VALUE: &str = "SnapAssist";
 
+/// 0x0083 = SPI_SETWINARRANGEMENT (identique au script batch et Ã  l'API Windows native).
+const SPI_SETWINARRANGEMENT: SYSTEM_PARAMETERS_INFO_ACTION = SYSTEM_PARAMETERS_INFO_ACTION(0x0083);
+/// 0x008D = SPI_SETDRAGFROMMAXIMIZE
+const SPI_SETDRAGFROMMAXIMIZE: SYSTEM_PARAMETERS_INFO_ACTION = SYSTEM_PARAMETERS_INFO_ACTION(0x008D);
+
 /// L'ancrage Windows est-il actif ?
 pub fn is_snap_enabled() -> bool {
     read_sz(HKEY_CURRENT_USER, DESKTOP_KEY, WINDOW_ARRANGEMENT_VALUE)
@@ -24,7 +29,7 @@ pub fn is_snap_enabled() -> bool {
         == Some("1")
 }
 
-/// Active ou désactive l'ancrage. Retourne false en cas d'échec d'écriture.
+/// Active ou dÃ©sactive l'ancrage. Retourne false en cas d'Ã©chec d'Ã©criture.
 pub fn set_snap(enabled: bool) -> bool {
     let value = if enabled { "1" } else { "0" };
     let arrangement_ok = write_sz(HKEY_CURRENT_USER, DESKTOP_KEY, WINDOW_ARRANGEMENT_VALUE, value);
@@ -36,7 +41,13 @@ pub fn set_snap(enabled: bool) -> bool {
     };
 
     unsafe {
-        // SPI_SETDRAGFROMMAXIMIZE : permet ou interdit le drag depuis une fenêtre maximisée.
+        // Notification immÃ©diate du sous-systÃ¨me Windows User32 (0x0083 : SPI_SETWINARRANGEMENT).
+        let _ = SystemParametersInfoW(
+            SPI_SETWINARRANGEMENT,
+            u32::from(enabled),
+            None,
+            SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+        );
         let _ = SystemParametersInfoW(
             SPI_SETDRAGFROMMAXIMIZE,
             u32::from(enabled),
@@ -48,12 +59,14 @@ pub fn set_snap(enabled: bool) -> bool {
     arrangement_ok && dock_moving_ok && snap_assist_ok
 }
 
-/// Redémarre l'explorateur, nécessaire pour appliquer le réglage.
+/// RedÃ©marre l'explorateur, nÃ©cessaire pour appliquer le rÃ©glage.
 pub fn restart_explorer() {
     let _ = std::process::Command::new("taskkill")
         .args(["/f", "/im", "explorer.exe"])
         .status();
-    let _ = std::process::Command::new("explorer.exe").spawn();
+    let _ = std::process::Command::new("cmd")
+        .args(["/c", "start", "", "explorer.exe"])
+        .spawn();
 }
 
 fn read_sz(root: HKEY, subkey: &str, value: &str) -> Option<String> {
@@ -122,7 +135,7 @@ fn write_dword(root: HKEY, subkey: &str, value: &str, data: u32) -> bool {
 mod tests {
     use super::*;
 
-    /// Lecture seule du registre réel, sans effet de bord.
+    /// Lecture seule du registre rÃ©el, sans effet de bord.
     #[test]
     fn lit_letat_de_lancrage() {
         let _enabled = is_snap_enabled();

@@ -1,16 +1,21 @@
-//! Hooks bas niveau installés sur la thread UI : position souris (WH_MOUSE_LL)
-//! et début/fin de drag système (WinEventHook). Les événements sont mis en file
-//! puis consommés par la boucle de messages, jamais traités dans le callback.
+﻿//! Hooks bas niveau installÃ©s sur la thread UI : position souris (WH_MOUSE_LL),
+//! navigation clavier (WH_KEYBOARD_LL) et dÃ©but/fin de drag systÃ¨me (WinEventHook).
+//! Les Ã©vÃ©nements sont mis en file puis consommÃ©s par la boucle de messages.
 
 use std::collections::VecDeque;
 use std::sync::Mutex;
 
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    GetAsyncKeyState, VK_DOWN, VK_ESCAPE, VK_LEFT, VK_LMENU, VK_MENU, VK_RIGHT, VK_RMENU, VK_UP,
+    VK_CONTROL,
+};
 use windows::Win32::UI::WindowsAndMessaging::*;
 
-/// Événement souris bas niveau ou de drag système. Les handles sont stockés en
-/// valeur brute (usize) pour que le type reste Send.
+use crate::arrow_snap::ArrowKey;
+
+/// Ã‰vÃ©nement souris, clavier ou drag systÃ¨me.
 #[derive(Debug, Clone, Copy)]
 pub enum InputEvent {
     MouseMove { x: i32, y: i32 },
@@ -19,19 +24,24 @@ pub enum InputEvent {
     RightDown,
     DragStart { hwnd: Option<usize> },
     DragEnd,
+    GridNavigate(ArrowKey),
+    GridFinish,
+    GridCancel,
 }
 
 static QUEUE: Mutex<VecDeque<InputEvent>> = Mutex::new(VecDeque::new());
 static MOUSE_HOOK: Mutex<Option<usize>> = Mutex::new(None);
+static KEYBOARD_HOOK: Mutex<Option<usize>> = Mutex::new(None);
 static EVENT_HOOK: Mutex<Option<usize>> = Mutex::new(None);
 
-/// Installe les deux hooks sur la thread appelante (la thread UI). La boucle de
-/// messages doit tourner ensuite pour que les callbacks soient invoqués.
+/// Installe les hooks sur la thread appelante (la thread UI).
 pub fn install() -> windows::core::Result<()> {
     unsafe {
-        // hMod NULL : la procédure est dans le code du processus courant.
         let mouse_hook = SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_proc), None, 0)?;
         *MOUSE_HOOK.lock().unwrap() = Some(mouse_hook.0 as usize);
+
+        let kbd_hook = SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), None, 0)?;
+        *KEYBOARD_HOOK.lock().unwrap() = Some(kbd_hook.0 as usize);
 
         let event_hook = SetWinEventHook(
             EVENT_SYSTEM_MOVESIZESTART,
@@ -47,9 +57,14 @@ pub fn install() -> windows::core::Result<()> {
     }
 }
 
-/// Retire les hooks (à l'arrêt).
+/// Retire les hooks (Ã  l'arrÃªt).
 pub fn uninstall() {
     if let Some(raw) = MOUSE_HOOK.lock().unwrap().take() {
+        unsafe {
+            let _ = UnhookWindowsHookEx(HHOOK(raw as *mut core::ffi::c_void));
+        }
+    }
+    if let Some(raw) = KEYBOARD_HOOK.lock().unwrap().take() {
         unsafe {
             let _ = UnhookWindowsHookEx(HHOOK(raw as *mut core::ffi::c_void));
         }
@@ -61,7 +76,7 @@ pub fn uninstall() {
     }
 }
 
-/// Vide la file d'événements.
+/// Vide la file d'Ã©vÃ©nements.
 pub fn drain() -> Vec<InputEvent> {
     let mut queue = QUEUE.lock().unwrap();
     queue.drain(..).collect()
@@ -91,6 +106,52 @@ unsafe extern "system" fn mouse_proc(ncode: i32, wparam: WPARAM, lparam: LPARAM)
             }),
             WM_RBUTTONDOWN => push(InputEvent::RightDown),
             _ => {}
+        }
+    }
+    CallNextHookEx(None, ncode, wparam, lparam)
+}
+
+unsafe extern "system" fn keyboard_proc(ncode: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    if ncode >= 0 {
+        let info = &*(lparam.0 as *const KBDLLHOOKSTRUCT);
+        let vk = info.vkCode;
+        let is_key_down = wparam.0 == WM_KEYDOWN as usize || wparam.0 == WM_SYSKEYDOWN as usize;
+        let is_key_up = wparam.0 == WM_KEYUP as usize || wparam.0 == WM_SYSKEYUP as usize;
+
+        if is_key_down {
+            let alt_down = (GetAsyncKeyState(VK_MENU.0 as i32) as u16 & 0x8000) != 0;
+            let ctrl_down = (GetAsyncKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0;
+
+            // Si Alt est maintenu et Ctrl est relÃ¢chÃ© pendant l'appui sur une flÃ¨che directionnelle :
+            if alt_down && !ctrl_down {
+                match vk {
+                    c if c == VK_LEFT.0 as u32 => {
+                        push(InputEvent::GridNavigate(ArrowKey::Left));
+                        return LRESULT(1);
+                    }
+                    c if c == VK_RIGHT.0 as u32 => {
+                        push(InputEvent::GridNavigate(ArrowKey::Right));
+                        return LRESULT(1);
+                    }
+                    c if c == VK_UP.0 as u32 => {
+                        push(InputEvent::GridNavigate(ArrowKey::Up));
+                        return LRESULT(1);
+                    }
+                    c if c == VK_DOWN.0 as u32 => {
+                        push(InputEvent::GridNavigate(ArrowKey::Down));
+                        return LRESULT(1);
+                    }
+                    c if c == VK_ESCAPE.0 as u32 => {
+                        push(InputEvent::GridCancel);
+                        return LRESULT(1);
+                    }
+                    _ => {}
+                }
+            }
+        } else if is_key_up {
+            if vk == VK_MENU.0 as u32 || vk == VK_LMENU.0 as u32 || vk == VK_RMENU.0 as u32 {
+                push(InputEvent::GridFinish);
+            }
         }
     }
     CallNextHookEx(None, ncode, wparam, lparam)

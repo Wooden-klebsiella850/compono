@@ -1,4 +1,4 @@
-//! Machine à états du geste de placement.
+﻿//! Machine à états du geste de placement.
 //!
 //! Workflow :
 //! 1. Idle : en attente.
@@ -28,7 +28,7 @@ const EDGE_BAND_PX: u32 = 35;
 /// Distance minimale de déplacement pour détecter un drag de fenêtre.
 const DRAG_THRESHOLD_PX: i32 = 8;
 /// Durée minimale de maintien au bord de l'écran avant déclenchement (0.5 seconde).
-pub const DWELL_DURATION: Duration = Duration::from_millis(500);
+pub const DWELL_DURATION: Duration = Duration::from_millis(250);
 /// Épaisseur du halo affiché sur le bord déclencheur.
 pub const HALO_THICKNESS: f32 = 140.0;
 
@@ -245,6 +245,7 @@ impl Session {
                 SessionAction::None
             }
             InputEvent::DragEnd => self.on_drag_end(),
+            _ => SessionAction::None,
         }
     }
 
@@ -464,6 +465,16 @@ impl Session {
         Some((index, edge, grid))
     }
 
+    /// Annule la session en cours et retourne l'action d'annulation.
+    pub fn cancel(&mut self) -> SessionAction {
+        let target = self.target_window;
+        self.reset();
+        SessionAction::Cancel {
+            target_window: target,
+        }
+    }
+
+    /// Reset complet de la session.
     fn reset(&mut self) {
         self.state = State::Idle;
         self.target_window = None;
@@ -606,7 +617,7 @@ mod tests {
         assert_eq!(action, SessionAction::None);
 
         // Simuler l'écoulement de 0.5 seconde au bord
-        session.band_enter_time = Some(Instant::now() - Duration::from_millis(550));
+        session.band_enter_time = Some(Instant::now() - Duration::from_millis(300));
         let action = session.tick();
         match action {
             SessionAction::ShowGrid { edge, .. } => assert_eq!(edge, Some(ScreenEdge::Left)),

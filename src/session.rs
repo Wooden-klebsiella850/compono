@@ -358,6 +358,15 @@ impl Session {
             State::AwaitingSelection => {
                 if let (Some(grid), Some(monitor)) = (&self.grid, self.monitor) {
                     if let Some(anchor) = grid.hit_test(x, y) {
+                        // Clic sur la case tout en haut Ã  droite : fermeture/annulation de la grille
+                        if anchor.col == grid.cols().saturating_sub(1) && anchor.row == 0 {
+                            let target = self.target_window;
+                            self.reset();
+                            return SessionAction::Cancel {
+                                target_window: target,
+                            };
+                        }
+
                         self.anchor = Some(anchor);
                         self.state = State::DrawingSelection;
                         let rect = grid.cell_rect(anchor);
@@ -393,6 +402,19 @@ impl Session {
     fn on_mouse_up(&mut self, x: i32, y: i32) -> SessionAction {
         match self.state {
             State::DrawingSelection => {
+                if let (Some(grid), Some(anchor)) = (&self.grid, &self.anchor) {
+                    if anchor.col == grid.cols().saturating_sub(1) && anchor.row == 0 {
+                        let current = grid.hit_test(x, y);
+                        if current == Some(*anchor) || current.is_none() {
+                            let target = self.target_window;
+                            self.reset();
+                            return SessionAction::Cancel {
+                                target_window: target,
+                            };
+                        }
+                    }
+                }
+
                 let rect = self.current_rect.or_else(|| {
                     if let (Some(grid), Some(anchor)) = (&self.grid, &self.anchor) {
                         let current = grid.hit_test(x, y).unwrap_or(*anchor);
@@ -682,6 +704,25 @@ mod tests {
             }
             other => panic!("attendu Place, obtenu {other:?}"),
         }
+        assert_eq!(session.state(), State::Idle);
+    }
+    #[test]
+    fn clic_case_haut_droite_ferme_la_grille() {
+        let work = Rect::new(0, 0, 1920, 1080);
+        let mut session = Session::new(GridOptions::default());
+        let grid = Grid::new(work, GridOptions::default()).unwrap();
+        session.state = State::AwaitingSelection;
+        session.monitor = Some(0);
+        session.grid = Some(grid);
+
+        let top_right_cell = Cell { col: 19, row: 0 };
+        let cell_rect = grid.cell_rect(top_right_cell);
+        let action = session.handle(InputEvent::MouseDown {
+            x: cell_rect.x + (cell_rect.width as i32 / 2),
+            y: cell_rect.y + (cell_rect.height as i32 / 2),
+        });
+
+        assert_eq!(action, SessionAction::Cancel { target_window: None });
         assert_eq!(session.state(), State::Idle);
     }
 }

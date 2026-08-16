@@ -1,4 +1,4 @@
-//! Rendu GPU des overlays : D3D11 + DirectComposition + Direct2D.
+﻿//! Rendu GPU des overlays : D3D11 + DirectComposition + Direct2D.
 //!
 //! L'initialisation GPU est paresseuse : elle n'a lieu qu'à la première
 //! apparition de la grille, pour garder un démarrage du tray instantané.

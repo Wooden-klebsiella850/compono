@@ -15,115 +15,94 @@
 
 ## Overview
 
-Compono drags the fine tuning out of window placement. Move a window to a
-screen edge and hold it there; a grid overlay opens on that edge, the window
-hides, and drawing a rectangle on the grid moves and resizes the window to
-match it exactly. The same placements are reachable from the keyboard with
-`Win` plus an arrow key.
+Compono is a lightweight, high-performance window manager and placement overlay for Windows. Drag a window to any screen edge or use hotkeys to snap, resize, or navigate windows across a configurable grid.
 
-It covers the same job as Windows' native Snap, but drives placement itself
-through `SetWindowPos` rather than relying on the OS to recognize the drag.
-That reaches windows Snap sometimes does not, including a Command Prompt or
-Windows Terminal window running as administrator, and windows hosted by
-WinUI or XAML Islands.
+Unlike default Windows Snap, Compono applies direct `SetWindowPos` geometry, reliably managing elevated processes (Command Prompt, PowerShell, Windows Terminal), WinUI applications, and XAML Island windows across multi-monitor setups.
 
 ## Features
 
-- Edge drag and hold: reach a screen edge, hold for 0.5 second, drop the
-  window, draw the destination rectangle on the grid.
-- Keyboard placement: `Win+Left` / `Win+Right` / `Win+Up` / `Win+Down` snaps
-  the active window to a half; pressing the same arrow again halves it
-  further into a quarter. Combining a horizontal and a vertical arrow places
-  it in a corner.
-- Places windows other tools miss, including elevated processes (see
-  Administrator privileges below) and Windows Terminal.
-- Per monitor DPI aware, multi monitor.
-- Tray icon: open the grid, toggle Windows' native Snap on or off, quit.
-- French and English interface, following the system locale by default.
+- **Fast Edge Dwell Detection**: Drag any window to a screen edge and hold for 250 ms to open the full-screen grid.
+- **Custom Rectangle Drawing**: Drop the window on the grid, draw any target rectangle, and release to place.
+- **Keyboard Snapping (`Ctrl+Alt+Arrows`)**: Instant cycling between halves, quarters, two-thirds, corners, and full screen.
+- **Grid Navigation (`Alt+Arrows`)**: Move windows cell-by-cell on the grid using arrow keys.
+- **Multi-Monitor Seamless Transition**: Moving a window past screen boundaries jumps directly to the adjacent monitor.
+- **Quick Close Button**: Click the dedicated close cell (marked with a red cross) at the top-right corner to exit the grid.
+- **Windows Snap Integration**: Toggle native Windows Snap on or off directly from the tray with clean Explorer reload.
+- **Multi-Monitor and Per-Monitor DPI Aware**: Hardware-accelerated Direct2D and DirectComposition rendering.
+- **Bilingual**: French and English interface automatically matching your system locale.
 
-## Requirements
+## Shortcuts
 
-- Windows 10 or Windows 11.
-- Administrator privileges. See below.
-
-### Administrator privileges
-
-Compono's manifest requests `requireAdministrator`. Windows blocks a
-standard process from resizing or moving a window owned by a higher
-integrity process (User Interface Privilege Isolation), which covers any
-terminal or tool running as administrator. Running Compono elevated removes
-that restriction, so it can place any window on the desktop, not only the
-ones running at its own privilege level.
-
-## Installation
-
-Download the latest release from the
-[Releases page](https://github.com/infinition/compono/releases), extract
-the archive, and run `compono.exe`. Windows prompts for elevation on
-launch; accept it, that is the administrator manifest described above.
+| Shortcut | Action | Description |
+|---|---|---|
+| `Win+Alt+G` | Toggle grid overlay | Opens or closes the placement grid on the active monitor |
+| `Ctrl+Alt+Left` | Snap horizontal left | Cycles: 1/2 (50%) -> 1/4 (25%) -> 2/3 (66.6%) -> 1/2 (100% height) |
+| `Ctrl+Alt+Right` | Snap horizontal right | Cycles: 1/2 (50%) -> 1/4 (25%) -> 2/3 (66.6%) -> 1/2 (100% height) |
+| `Ctrl+Alt+Up` (from side) | Snap corner / top half | Cycles: Top corner (1/4) -> Fine corner (1/8) -> Full top half (1/2) -> Full screen |
+| `Ctrl+Alt+Down` (from side) | Snap corner / bottom half | Cycles: Bottom corner (1/4) -> Fine corner (1/8) -> Full bottom half (1/2) |
+| `Ctrl+Alt+Up` (direct) | Snap vertical top | Cycles: Top half (50%) -> Top quarter (25%) -> Full screen (100%) |
+| `Ctrl+Alt+Down` (direct) | Snap vertical bottom | Cycles: Bottom half (50%) -> Bottom quarter (25%) |
+| `Alt + Arrows` (hold Alt) | Grid cell movement | Moves the active window step-by-step across grid cells |
+| `Alt + Arrows` (at screen edge) | Cross-monitor jump | Jumps window and grid focus to the adjacent screen |
+| `Esc` / Release `Alt` | Confirm & exit grid | Locks window position and hides the overlay |
 
 ## Usage
 
-### Drag gesture
+### 1. Edge Drag and Drop
 
-1. Drag any window to a screen edge (top, left, right or bottom) and hold
-   it there for half a second.
-2. The grid opens with a halo on that edge. Release the window; it hides
-   and the grid stays open.
-3. Click and drag on the grid to draw the destination rectangle.
-4. Release the click; the window reappears, resized and placed on that
-   rectangle, and gets focus.
-5. Right click, or click outside the grid, cancels and restores the window
-   where it was.
+1. Drag any window to a screen edge (left, right, top, or bottom) and hold for **250 ms**.
+2. The grid overlay appears with an edge halo. Release the mouse button.
+3. Click and drag across grid cells to define your destination rectangle.
+4. Release the click: the window is placed and focused.
+5. To cancel: click the top-right cell marked with `✕`, right-click, or press `Esc`.
 
-### Keyboard
+### 2. Keyboard Grid Navigation
 
-| Shortcut | Action |
-|---|---|
-| `Win+Alt+G` | Open the grid for the current foreground window |
-| `Win+Left` / `Win+Right` | Snap to the left / right half; press again for a quarter |
-| `Win+Up` / `Win+Down` | Snap to the top / bottom half; press again for a quarter |
-| One horizontal arrow, then one vertical arrow | Snap to that corner |
+1. Snap a window using `Ctrl+Alt+Arrows`.
+2. Release `Ctrl` while keeping `Alt` pressed.
+3. Press any arrow key (`Left`, `Right`, `Up`, `Down`) to step the window across the grid.
+4. If you reach the edge of a monitor, pressing the arrow key again moves the window to the adjacent monitor.
+5. Release `Alt` to lock the window into position.
 
-Each window keeps its own half/quarter state, so switching to another
-window does not disturb it.
+### 3. Tray Menu
 
-### Tray menu
+Click or right-click the Compono icon in the taskbar notification area:
 
-Left click or right click the tray icon for:
+- **Show grid / Hide grid** (`Win+Alt+G`).
+- **Start with Windows**: Toggle automatic startup via `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+- **Windows Snap**: Toggle OS native window snapping (updates registry and triggers `SPI_SETWINARRANGEMENT`).
+- **Quit**: Exits Compono and unregisters hooks.
 
-- **Show grid** (`Win+Alt+G`) for the foreground window.
-- **Start with Windows** on/off, registering `compono.exe` in
-  `HKCU\...\Run` (no administrator rights required for this one).
-- **Windows Snap** on/off, toggling the OS's own window arrangement through
-  the registry and `SystemParametersInfo`, the same effect as disabling it
-  from Windows Settings.
-- **Quit**.
+## Administrator Privileges
+
+Compono requests `requireAdministrator` via its application manifest. Under Windows User Interface Privilege Isolation (UIPI), standard processes cannot move or resize windows belonging to elevated processes. Running Compono elevated allows it to manage all desktop windows, including administrator consoles and terminals.
+
+## Installation
+
+1. Download the latest release from the [Releases page](https://github.com/infinition/compono/releases).
+2. Extract the archive.
+3. Run `compono.exe` (accept the standard UAC elevation prompt).
 
 ## Configuration
 
-Compono reads `%APPDATA%\Compono\config.toml` on startup. The only setting
-at the moment is the interface language:
+Compono creates its configuration in `%APPDATA%\Compono\config.toml`:
 
 ```toml
-lang = "en"
+lang = "en" # "en" or "fr"
 ```
 
-Omit it, or leave the file absent, to follow the system locale (falls back
-to French).
+If omitted, Compono automatically follows the Windows system language.
 
-## Building from source
+## Building from Source
 
-Requires Rust 1.85 or later, on Windows.
+Requires Rust 1.85 or later on Windows:
 
-```
+```powershell
 cargo build --release
 ```
 
-The binary is written to `target/release/compono.exe`. `cargo test`
-requires an already elevated terminal, since the compiled test binary
-carries the same administrator manifest as the application.
+The optimized binary is created at `target/release/compono.exe`.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT License. See [LICENSE](LICENSE) for details.

